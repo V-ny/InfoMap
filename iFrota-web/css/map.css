@@ -1,0 +1,114 @@
+/* Background do body combina com o do mapa pra horizonte (pitch) não vazar branco */
+body { background-color: #f0f2f0; }
+body.dark { background-color: #0a0a0a; }
+
+/* position+z-index criam um stacking context próprio: assim o z-index alto dos
+   marcadores selecionados (.wp-marker.selected) fica CONTIDO no mapa e não vaza
+   por cima do painel lateral / bottom sheet (que vivem no #app-root, z-index 5). */
+#map { height: 100%; width: 100%; position: absolute; inset: 0; z-index: 0; }
+
+/* ── Waypoints ─────────────────────────────────────────────────────────────── */
+.wp-marker { width: 36px; height: 47px; cursor: pointer; }
+.wp-content { position: relative; }
+.wp-circle {
+  position: relative; z-index: 1;   /* círculo por cima do conector (cobre a base) */
+  width: 36px; height: 36px; border-radius: 50%;
+  background: #ffffff;
+  border: 2.5px solid #0f172a;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.30);
+  display: flex; align-items: center; justify-content: center;
+  color: #ffffff; font-size: 14px;
+}
+/* conector com a base ENFIADA dentro do círculo (sem gap nos cantos) — só o tip
+   aparece. Mesma técnica das pontas de evento. */
+.wp-arrow {
+  position: absolute; top: 33px; left: 50%; margin-left: -8px; z-index: 0;
+  width: 0; height: 0;
+  border-left: 8px solid transparent; border-right: 8px solid transparent;
+  border-top: 13px solid #0f172a;
+}
+body.dark .wp-circle {
+  background: #0f172a;
+  border-color: #ffffff;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.55);
+}
+body.dark .wp-arrow { border-top-color: #ffffff; }
+
+/* ── Marcador de EVENTO: círculo original + 5 pontas douradas em volta ───────── */
+/* Cada ponta é o MESMO triângulo do conector (.wp-arrow): 8px base × 11px.       */
+.wp-marker.event { width: 36px; height: 47px; }
+.wp-marker.event .wp-content { position: relative; }
+.wp-spikes {
+  position: absolute; top: 0; left: 0; width: 36px; height: 36px; z-index: 0;
+  animation: spike-shine 5s ease-in-out infinite;   /* reluzência periódica */
+}
+/* ponta idêntica ao conector; a base fica ENFIADA ~3px dentro do círculo (que
+   passa por cima e cobre a base), eliminando os gaps nos cantos — só o tip
+   aparece. O rotate gira ao redor do centro do círculo. */
+.wp-spike {
+  position: absolute; top: 33px; left: 50%; margin-left: -8px;
+  width: 0; height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-top: 13px solid #e6b422;
+  transform-origin: 50% -15px;
+}
+/* círculo DOURADO (mesma cor das pontas), por cima das bases. Ícone central
+   sempre branco, nos dois temas. */
+.wp-marker.event .wp-circle {
+  position: relative; z-index: 1;
+  background: #e6b422;          /* dourado, igual às pontas */
+  border-color: #d4a017;        /* aro dourado levemente mais escuro */
+  color: #ffffff;               /* ícone branco (claro e escuro) */
+}
+/* Reluzência: glint dourado a cada 5s */
+@keyframes spike-shine {
+  0%, 100% { filter: brightness(1); }
+  8%       { filter: brightness(1.7) drop-shadow(0 0 5px rgba(255,215,80,0.95)); }
+  16%      { filter: brightness(1); }
+}
+.wp-marker.event.selected { z-index: 100; }
+.wp-marker.event.selected .wp-content { animation: wp-pulse 1.6s ease-in-out infinite; }
+
+.wp-marker.selected { z-index: 100; }
+.wp-marker.selected .wp-content {
+  animation: wp-pulse 1.6s ease-in-out infinite;
+  transform-origin: bottom center;
+}
+.wp-marker.selected .wp-circle {
+  box-shadow: 0 0 0 4px rgba(255,255,255,0.30), 0 8px 20px rgba(0,0,0,0.55);
+}
+@keyframes wp-pulse {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.15); }
+}
+
+/* ── Marcador do usuário ───────────────────────────────────────────────────── */
+.user-dot {
+  width: 18px; height: 18px; border-radius: 50%;
+  background: #ffffff; border: 3px solid #0f172a;
+  box-shadow: 0 0 0 3px rgba(255,255,255,0.55), 0 2px 8px rgba(0,0,0,0.6);
+}
+
+/* ── Controles do MapLibre ─────────────────────────────────────────────────── */
+.maplibregl-ctrl-attrib, .maplibregl-ctrl-logo { display: none !important; }
+.maplibregl-ctrl-top-right {
+  margin-top: 10px !important; margin-right: 10px !important;
+}
+.maplibregl-ctrl-group {
+  background: rgba(20, 20, 20, 0.92) !important;
+  border: 1px solid rgba(80, 80, 80, 0.4) !important;
+  border-radius: 12px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.45) !important;
+  overflow: hidden;
+}
+.maplibregl-ctrl-group button {
+  background-color: transparent !important;
+  color: #ffffff !important;
+}
+.maplibregl-ctrl-group button:hover {
+  background-color: rgba(255,255,255,0.08) !important;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.2);
+}

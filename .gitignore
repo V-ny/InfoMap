@@ -1,0 +1,39 @@
+# ── Dependências / build ──
+iFrota-web/node_modules/
+iFrota-web/www/
+*.apk
+
+# ── Capacitor / Android (gerados e caches) ──
+iFrota-web/android/.gradle/
+iFrota-web/android/build/
+iFrota-web/android/app/build/
+iFrota-web/android/capacitor-cordova-android-plugins/
+iFrota-web/android/app/src/main/assets/public/
+iFrota-web/android/app/src/main/assets/capacitor.config.json
+iFrota-web/android/app/src/main/assets/capacitor.plugins.json
+iFrota-web/android/local.properties
+iFrota-web/android/.idea/
+
+# ── Python ──
+__pycache__/
+*.pyc
+
+# ── Artefatos de teste / cache ──
+iFrota-web/_shot*.png
+.cache/
+
+# ── Ferramentas pessoais ──
+.claude/
+
+# ── SO / OneDrive / IDE ──
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+
+# Screenshots de DEV (raiz) — NÃO vão pro repo:
+/screenshots/
+
+# Obs.: as fotos da GALERIA ficam em iFrota-web/fotos/ e SÃO versionadas
+# (não há regra ignorando-as).

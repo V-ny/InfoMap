@@ -1,0 +1,21 @@
+# Artefatos de teste/screenshot
+_shot*.png
+_shot.py.out
+
+# Build Android (Bubblewrap/Capacitor)
+node_modules/
+.bubblewrap/
+android/
+*.apk
+*.aab
+*.keystore
+android.keystore
+twa-manifest.json.bak
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store

@@ -1,0 +1,50 @@
+[
+  {
+    "nome": "Semana de Tecnologia",
+    "local": "Auditório",
+    "dias": ["seg", "ter", "qua", "qui", "sex"],
+    "inicio": "2026-06-01",
+    "fim": "2026-12-31",
+    "horaInicio": "18:00",
+    "horaFim": "22:00",
+    "desc": "Palestras e oficinas de tecnologia no auditório.",
+    "horarios": {
+      "seg": [["19:00", "Abertura"], ["20:00", "Palestra"]],
+      "ter": [["19:00", "Oficina de IA"]],
+      "qua": [["19:00", "Hackathon"]],
+      "qui": [["19:00", "Robótica"]],
+      "sex": [["19:00", "Encerramento"]]
+    }
+  },
+  {
+    "nome": "Feira de Adoção Pet",
+    "coords": [-22.5202, -43.9928],
+    "icone": "paw",
+    "cor": "orange",
+    "cat": "Convivência",
+    "dias": ["ter", "sab"],
+    "inicio": "2026-06-01",
+    "fim": "2026-12-31",
+    "horaInicio": "09:00",
+    "horaFim": "16:00",
+    "desc": "Feira de adoção de animais — evento temporário no pátio.",
+    "horarios": {
+      "ter": [["09:00", "Abertura"], ["15:00", "Adoções"]],
+      "sab": [["09:00", "Abertura"]]
+    }
+  },
+  {
+    "nome": "Apresentação Musical",
+    "coords": [-22.5200, -43.9925],
+    "icone": "music",
+    "cor": "orange",
+    "cat": "Eventos",
+    "dias": ["qua"],
+    "inicio": "2026-06-24",
+    "fim": "2026-06-24",
+    "horaInicio": "22:30",
+    "horaFim": "23:59",
+    "atividade": "Apresentação",
+    "desc": "Apresentação musical especial — começa às 22:30, só hoje."
+  }
+]

@@ -1,0 +1,22 @@
+{
+  "name": "ifrota-web",
+  "version": "1.0.0",
+  "description": "Reescrita web do IFrota (originalmente PySide6 desktop) com o objetivo final de empacotar como APK Android via TWA (Trusted Web Activity).",
+  "main": "sw.js",
+  "scripts": {
+    "build:www": "node build-www.mjs",
+    "sync": "node build-www.mjs && cap sync android",
+    "open:android": "cap open android"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@capacitor/android": "^6.2.1",
+    "@capacitor/cli": "^6.2.1",
+    "@capacitor/core": "^6.2.1",
+    "@capacitor/geolocation": "^6.1.1",
+    "@capacitor/splash-screen": "^6.0.4"
+  }
+}

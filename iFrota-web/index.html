@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#2e7d32">
+  <title>IFrota</title>
+
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" href="./icons/favicon.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+
+  <!-- MapLibre GL JS (vendorizado local p/ offline) -->
+  <link href="./vendor/maplibre/maplibre-gl.css" rel="stylesheet">
+  <script src="./vendor/maplibre/maplibre-gl.js"></script>
+
+  <!-- Ícones FontAwesome (vendorizado local p/ offline) -->
+  <link rel="stylesheet" href="./vendor/fontawesome/css/font-awesome.min.css">
+
+  <link rel="stylesheet" href="./css/reset.css">
+  <link rel="stylesheet" href="./css/theme.css">
+  <link rel="stylesheet" href="./css/map.css">
+  <link rel="stylesheet" href="./css/ui.css">
+</head>
+<body>
+  <div id="map"></div>
+
+  <div id="app-root">
+    <!-- HEADER -->
+    <header id="header">
+      <button class="hdr-btn" id="btn-menu" title="Menu"><i class="fa fa-bars"></i></button>
+      <div class="hdr-title">IFrota</div>
+      <button class="hdr-btn" id="btn-theme" title="Tema"><i class="fa fa-moon-o"></i></button>
+    </header>
+
+    <!-- SEARCH -->
+    <div id="search-bar">
+      <div id="search-pill">
+        <input id="search-input" type="text" placeholder="Buscar local no campus..." autocomplete="off">
+        <button id="search-btn" title="Buscar"><i class="fa fa-search"></i></button>
+      </div>
+    </div>
+    <div id="results-panel"></div>
+
+    <!-- DIM OVERLAY -->
+    <div id="dim"></div>
+
+    <!-- SIDE PANEL -->
+    <aside id="side-panel">
+      <div class="panel-head">
+        <div class="panel-brand">
+          <div class="logo"><i class="fa fa-map-o"></i></div>
+          <div>
+            <div class="panel-title">IFrota</div>
+            <div class="panel-subtitle">Mapa interativo do campus</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-header">NAVEGAÇÃO</div>
+        <div class="nav-grid">
+          <button class="nav-tile" id="pb-locate"><span class="nav-ico"><i class="fa fa-location-arrow"></i></span><span class="nav-lbl">Minha Localização</span></button>
+          <button class="nav-tile" id="pb-setpos"><span class="nav-ico"><i class="fa fa-map-marker"></i></span><span class="nav-lbl">Definir Posição</span></button>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-header">FAVORITOS</div>
+        <div id="fav-list"></div>
+      </div>
+
+      <div class="panel-section" id="eventos-section" style="display:none;">
+        <div class="section-header">EVENTOS</div>
+        <div id="eventos-list"></div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-header">CATEGORIAS</div>
+        <div id="cat-list"></div>
+      </div>
+
+      <div class="panel-section" id="admin-section" style="display:none;">
+        <div class="section-header">CONTA</div>
+
+        <button class="conta-entrar" id="pb-login">
+          <span class="conta-avatar"><i class="fa fa-user-o"></i></span>
+          <span class="conta-info">
+            <span class="conta-titulo">Entrar / Criar conta</span>
+            <span class="conta-sub">Gerencie fotos, pontos e eventos</span>
+          </span>
+          <i class="fa fa-chevron-right conta-arrow"></i>
+        </button>
+
+        <div id="admin-logado" style="display:none;">
+          <div class="conta-card">
+            <span class="conta-avatar"><i class="fa fa-user"></i></span>
+            <span class="conta-info">
+              <span class="conta-titulo" id="admin-email"></span>
+              <span class="conta-badge" id="admin-badge">Usuário</span>
+            </span>
+            <button class="conta-sair" id="pb-logout" title="Sair"><i class="fa fa-sign-out"></i></button>
+          </div>
+          <div id="admin-gestao" style="display:none;">
+            <button class="gestao-btn" id="pb-novo-ponto"><span class="gb-ico ponto"><i class="fa fa-map-marker"></i></span>Novo ponto de interesse</button>
+            <button class="gestao-btn" id="pb-novo-evento"><span class="gb-ico evento"><i class="fa fa-star"></i></span>Novo evento</button>
+            <button class="gestao-btn" id="pb-gerenciar"><span class="gb-ico gerenciar"><i class="fa fa-sliders"></i></span>Gerenciar pontos e eventos</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <!-- BOTTOM SHEET / CARD -->
+    <section id="bottom-card">
+      <div class="card-handle-bar"><div class="card-handle"></div></div>
+      <div class="card-body">
+        <div class="card-head-row">
+          <div class="card-icon" id="card-icon"><i class="fa fa-map-marker"></i></div>
+          <div class="card-info">
+            <div class="card-title" id="card-title"></div>
+            <div class="card-tags">
+              <span class="card-cat" id="card-cat"></span>
+              <span class="card-evento-badge" id="card-evento-badge" style="display:none;"><i class="fa fa-star"></i> EVENTO</span>
+            </div>
+          </div>
+          <button class="card-icon-btn fav" id="card-fav" title="Favoritar"><i class="fa fa-star-o"></i></button>
+          <button class="card-icon-btn" id="card-close" title="Fechar"><i class="fa fa-times"></i></button>
+        </div>
+        <div class="card-divider"></div>
+        <div class="card-desc" id="card-desc"></div>
+        <div class="card-distance" id="card-distance" style="display:none;"></div>
+        <button class="nav-btn" id="card-nav"><i class="fa fa-location-arrow"></i> Ir para este local</button>
+      </div>
+      <div class="card-expanded" id="card-expanded">
+        <!-- Agenda semanal -->
+        <div class="section-label">PROGRAMAÇÃO SEMANAL</div>
+        <div class="agenda" id="agenda"></div>
+        <!-- Galeria -->
+        <div class="section-label">GALERIA</div>
+        <div class="gallery" id="gallery">
+          <div class="gal-hero" id="gal-hero"><i class="fa fa-camera"></i></div>
+          <button class="gal-nav prev" id="gal-prev"><i class="fa fa-chevron-left"></i></button>
+          <button class="gal-nav next" id="gal-next"><i class="fa fa-chevron-right"></i></button>
+          <div class="gal-counter" id="gal-counter"></div>
+          <button class="gal-del" id="gal-del" style="display:none;" title="Remover foto"><i class="fa fa-trash"></i></button>
+        </div>
+        <div class="gal-dots" id="gal-dots"></div>
+        <!-- controle de upload (só admin logado) -->
+        <div class="gal-admin" id="gal-admin" style="display:none;">
+          <input type="file" id="gal-file" accept="image/*" hidden>
+          <button class="gal-upload" id="gal-upload"><i class="fa fa-plus"></i> Adicionar foto</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISUALIZADOR FULLSCREEN DE FOTO -->
+    <div id="photo-viewer">
+      <button class="pv-close" id="pv-close"><i class="fa fa-times"></i></button>
+      <button class="pv-nav prev" id="pv-prev"><i class="fa fa-chevron-left"></i></button>
+      <img class="pv-img" id="pv-img" alt="">
+      <div class="pv-placeholder" id="pv-placeholder"><i class="fa fa-camera"></i></div>
+      <button class="pv-nav next" id="pv-next"><i class="fa fa-chevron-right"></i></button>
+      <div class="pv-counter" id="pv-counter"></div>
+    </div>
+
+    <!-- ROUTE BANNER -->
+    <section id="route-banner">
+      <div class="rb-left">
+        <div class="rb-icon" id="rb-icon"><i class="fa fa-map-marker"></i></div>
+        <div class="rb-name" id="rb-name"></div>
+      </div>
+      <div class="rb-center">
+        <div class="rb-arrival" id="rb-arrival">--:--</div>
+        <div class="rb-summary" id="rb-summary"></div>
+      </div>
+      <button class="rb-close" id="rb-close"><i class="fa fa-times"></i></button>
+    </section>
+
+    <!-- MODAL DE CONTA (login / cadastro) -->
+    <div id="login-modal">
+      <div class="login-box">
+        <div class="login-head">
+          <div class="login-title" id="login-title">Entrar</div>
+          <button class="login-close" id="login-close"><i class="fa fa-times"></i></button>
+        </div>
+        <p class="login-sub">Entre com sua conta para adicionar fotos à galeria dos locais.</p>
+        <input id="login-email" class="login-input" type="email" placeholder="E-mail" autocomplete="username">
+        <input id="login-senha" class="login-input" type="password" placeholder="Senha" autocomplete="current-password">
+        <div class="login-erro" id="login-erro"></div>
+        <button class="login-btn" id="login-submit">Entrar</button>
+        <button class="login-toggle" id="login-toggle">Criar conta</button>
+      </div>
+    </div>
+
+    <!-- MODAL: NOVO PONTO DE INTERESSE (admin) -->
+    <div id="ponto-modal" class="adm-modal">
+      <div class="adm-box">
+        <div class="adm-head"><div class="adm-title">Novo ponto de interesse</div><button class="login-close" id="ponto-close"><i class="fa fa-times"></i></button></div>
+        <input id="ponto-nome" class="login-input" placeholder="Nome do local" maxlength="60">
+        <label class="adm-label">Categoria</label>
+        <select id="ponto-cat" class="login-input"></select>
+        <label class="adm-label">Ícone</label>
+        <select id="ponto-icone" class="login-input"></select>
+        <textarea id="ponto-desc" class="login-input" placeholder="Descrição (opcional)" rows="2"></textarea>
+        <button class="adm-loc-btn" id="ponto-loc"><i class="fa fa-map-marker"></i> Escolher local no mapa</button>
+        <div class="adm-loc-info" id="ponto-loc-info">Local: não definido</div>
+        <div class="login-erro" id="ponto-erro"></div>
+        <button class="login-btn" id="ponto-salvar">Criar ponto</button>
+      </div>
+    </div>
+
+    <!-- MODAL: NOVO EVENTO (admin) -->
+    <div id="evento-modal" class="adm-modal">
+      <div class="adm-box">
+        <div class="adm-head"><div class="adm-title">Novo evento</div><button class="login-close" id="evento-close"><i class="fa fa-times"></i></button></div>
+        <input id="evento-nome" class="login-input" placeholder="Nome do evento" maxlength="60">
+        <label class="adm-label">Onde acontece</label>
+        <select id="evento-alvo" class="login-input"></select>
+        <div id="evento-temp" style="display:none;">
+          <button class="adm-loc-btn" id="evento-loc"><i class="fa fa-map-marker"></i> Escolher local no mapa</button>
+          <div class="adm-loc-info" id="evento-loc-info">Local: não definido</div>
+          <label class="adm-label">Ícone do ponto temporário</label>
+          <select id="evento-icone" class="login-input"></select>
+        </div>
+        <label class="adm-label">Dias da semana</label>
+        <div class="adm-dias" id="evento-dias"></div>
+        <label class="adm-label">Período (opcional)</label>
+        <div class="adm-row">
+          <input id="evento-inicio" class="login-input" type="date" title="Início">
+          <input id="evento-fim" class="login-input" type="date" title="Fim">
+        </div>
+        <label class="adm-label">Horário — o ícone aparece e some sozinho (opcional)</label>
+        <div class="adm-row">
+          <input id="evento-hora-ini" class="login-input" type="time" title="Início">
+          <input id="evento-hora-fim" class="login-input" type="time" title="Fim">
+        </div>
+        <input id="evento-atividade" class="login-input" placeholder="Atividade (ex: Palestra)">
+        <div class="adm-hint" id="evento-hora-hint">Início livre (ex.: 20:00). Na agenda, a marcação cobre os horários-padrão dentro da janela. Sem horário: ativo o dia todo.</div>
+        <textarea id="evento-desc" class="login-input" placeholder="Descrição (opcional)" rows="2"></textarea>
+        <div class="login-erro" id="evento-erro"></div>
+        <button class="login-btn" id="evento-salvar">Criar evento</button>
+      </div>
+    </div>
+
+    <!-- MODAL: GERENCIAR pontos e eventos (admin) -->
+    <div id="gerenciar-modal" class="adm-modal">
+      <div class="adm-box">
+        <div class="adm-head"><div class="adm-title">Gerenciar</div><button class="login-close" id="gerenciar-close"><i class="fa fa-times"></i></button></div>
+        <label class="adm-label">Eventos ativos</label>
+        <div id="gerenciar-eventos"></div>
+        <label class="adm-label">Pontos criados por você</label>
+        <div id="gerenciar-pontos"></div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+
+    <!-- POPUP DE EVENTOS (slide right-to-center / center-to-left) -->
+    <div id="event-popup">
+      <div class="ep-progress"><div class="ep-progress-fill" id="ep-progress-fill"></div></div>
+      <div class="ep-body" id="ep-body"></div>
+    </div>
+  </div>
+
+  <script type="module" src="./js/main.js"></script>
+  <script>
+    // ?nosw=1 desliga o Service Worker (dev/testes): desregistra, limpa caches e
+    // RECARREGA uma vez — assim a página já vem dos arquivos atuais (sem o SW
+    // antigo servir versão velha e desencontrada).
+    const _noSW = new URLSearchParams(location.search).has("nosw");
+    if (_noSW && "serviceWorker" in navigator) {
+      navigator.serviceWorker.getRegistrations().then(async (rs) => {
+        let limpou = rs.length > 0;
+        await Promise.all(rs.map((r) => r.unregister()));
+        if (window.caches) {
+          const ks = await caches.keys();
+          if (ks.length) limpou = true;
+          await Promise.all(ks.map((k) => caches.delete(k)));
+        }
+        // Recarrega uma única vez (guard evita loop) só se havia algo pra limpar.
+        if (limpou && !sessionStorage.getItem("_nosw_reload")) {
+          sessionStorage.setItem("_nosw_reload", "1");
+          location.reload();
+        }
+      });
+    } else {
+      sessionStorage.removeItem("_nosw_reload");
+    }
+    // Registra o Service Worker (offline + instalável). Ignora em file:// e com ?nosw.
+    if (!_noSW && "serviceWorker" in navigator && location.protocol.startsWith("http")) {
+      window.addEventListener("load", () => {
+        navigator.serviceWorker.register("./sw.js")
+          .then((reg) => console.log("[IFrota] SW registrado:", reg.scope))
+          .catch((err) => console.warn("[IFrota] SW falhou:", err));
+      });
+    }
+  </script>
+</body>
+</html>
