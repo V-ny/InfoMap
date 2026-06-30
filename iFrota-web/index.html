@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#2e7d32">
-  <title>IFrota</title>
+  <title>IF-rota</title>
 
   <link rel="manifest" href="./manifest.json">
   <link rel="icon" type="image/png" href="./icons/favicon.png">
@@ -29,7 +29,8 @@
     <!-- HEADER -->
     <header id="header">
       <button class="hdr-btn" id="btn-menu" title="Menu"><i class="fa fa-bars"></i></button>
-      <div class="hdr-title">IFrota</div>
+      <div class="hdr-title">IF-rota</div>
+      <button class="hdr-btn" id="btn-som" title="Som"><i class="fa fa-volume-up"></i></button>
       <button class="hdr-btn" id="btn-theme" title="Tema"><i class="fa fa-moon-o"></i></button>
     </header>
 
@@ -49,9 +50,9 @@
     <aside id="side-panel">
       <div class="panel-head">
         <div class="panel-brand">
-          <div class="logo"><i class="fa fa-map-o"></i></div>
+          <div class="logo"><img src="./icons/icon-192.png" alt="IF-rota"></div>
           <div>
-            <div class="panel-title">IFrota</div>
+            <div class="panel-title">IF-rota</div>
             <div class="panel-subtitle">Mapa interativo do campus</div>
           </div>
         </div>
@@ -80,6 +81,10 @@
         <div id="cat-list"></div>
       </div>
 
+      <div class="panel-section" id="install-section" style="display:none;">
+        <button class="gestao-btn" id="pwa-install"><span class="gb-ico predio"><i class="fa fa-download"></i></span>Instalar app no dispositivo</button>
+      </div>
+
       <div class="panel-section" id="admin-section" style="display:none;">
         <div class="section-header">CONTA</div>
 
@@ -103,8 +108,14 @@
           </div>
           <div id="admin-gestao" style="display:none;">
             <button class="gestao-btn" id="pb-novo-ponto"><span class="gb-ico ponto"><i class="fa fa-map-marker"></i></span>Novo ponto de interesse</button>
+            <button class="gestao-btn" id="pb-novo-predio"><span class="gb-ico predio"><i class="fa fa-building"></i></span>Novo prédio / bloco</button>
             <button class="gestao-btn" id="pb-novo-evento"><span class="gb-ico evento"><i class="fa fa-star"></i></span>Novo evento</button>
+            <button class="gestao-btn" id="pb-cardapio"><span class="gb-ico cardapio"><i class="fa fa-cutlery"></i></span>Cardápio do refeitório</button>
             <button class="gestao-btn" id="pb-gerenciar"><span class="gb-ico gerenciar"><i class="fa fa-sliders"></i></span>Gerenciar pontos e eventos</button>
+            <button class="gestao-btn" id="pb-exportar"><span class="gb-ico predio"><i class="fa fa-download"></i></span>Exportar dados (JSON)</button>
+            <button class="gestao-btn" id="pb-importar"><span class="gb-ico evento"><i class="fa fa-upload"></i></span>Importar dados (JSON)</button>
+            <button class="gestao-btn" id="pb-limpar"><span class="gb-ico gerenciar"><i class="fa fa-eraser"></i></span>Limpar dados criados localmente</button>
+            <input type="file" id="import-file" accept="application/json,.json" hidden>
           </div>
         </div>
       </div>
@@ -123,6 +134,7 @@
               <span class="card-evento-badge" id="card-evento-badge" style="display:none;"><i class="fa fa-star"></i> EVENTO</span>
             </div>
           </div>
+          <button class="card-icon-btn" id="card-edit" title="Editar (admin)" style="display:none;"><i class="fa fa-pencil"></i></button>
           <button class="card-icon-btn fav" id="card-fav" title="Favoritar"><i class="fa fa-star-o"></i></button>
           <button class="card-icon-btn" id="card-close" title="Fechar"><i class="fa fa-times"></i></button>
         </div>
@@ -132,23 +144,40 @@
         <button class="nav-btn" id="card-nav"><i class="fa fa-location-arrow"></i> Ir para este local</button>
       </div>
       <div class="card-expanded" id="card-expanded">
-        <!-- Agenda semanal -->
-        <div class="section-label">PROGRAMAÇÃO SEMANAL</div>
-        <div class="agenda" id="agenda"></div>
-        <!-- Galeria -->
-        <div class="section-label">GALERIA</div>
-        <div class="gallery" id="gallery">
-          <div class="gal-hero" id="gal-hero"><i class="fa fa-camera"></i></div>
-          <button class="gal-nav prev" id="gal-prev"><i class="fa fa-chevron-left"></i></button>
-          <button class="gal-nav next" id="gal-next"><i class="fa fa-chevron-right"></i></button>
-          <div class="gal-counter" id="gal-counter"></div>
-          <button class="gal-del" id="gal-del" style="display:none;" title="Remover foto"><i class="fa fa-trash"></i></button>
+        <!-- Navegador de andares/salas (só em prédios e blocos) -->
+        <div id="card-niveis" style="display:none;">
+          <div class="section-label" id="cn-label">SALAS</div>
+          <div class="cn-crumb" id="cn-crumb"></div>
+          <div class="cn-lista" id="cn-lista"></div>
         </div>
-        <div class="gal-dots" id="gal-dots"></div>
-        <!-- controle de upload (só admin logado) -->
-        <div class="gal-admin" id="gal-admin" style="display:none;">
-          <input type="file" id="gal-file" accept="image/*" hidden>
-          <button class="gal-upload" id="gal-upload"><i class="fa fa-plus"></i> Adicionar foto</button>
+        <!-- Disponibilidade (interdição / obra) -->
+        <div id="card-status" class="card-status" style="display:none;"></div>
+        <!-- Cardápio semanal (refeitório) -->
+        <div id="card-cardapio-sec" style="display:none;">
+          <div class="section-label">CARDÁPIO DA SEMANA</div>
+          <div class="cardapio" id="cardapio"></div>
+        </div>
+        <!-- Agenda semanal -->
+        <div id="card-agenda-sec">
+          <div class="section-label">PROGRAMAÇÃO SEMANAL</div>
+          <div class="agenda" id="agenda"></div>
+        </div>
+        <!-- Galeria -->
+        <div id="card-galeria-sec">
+          <div class="section-label">GALERIA</div>
+          <div class="gallery" id="gallery">
+            <div class="gal-hero" id="gal-hero"><i class="fa fa-camera"></i></div>
+            <button class="gal-nav prev" id="gal-prev"><i class="fa fa-chevron-left"></i></button>
+            <button class="gal-nav next" id="gal-next"><i class="fa fa-chevron-right"></i></button>
+            <div class="gal-counter" id="gal-counter"></div>
+            <button class="gal-del" id="gal-del" style="display:none;" title="Remover foto"><i class="fa fa-trash"></i></button>
+          </div>
+          <div class="gal-dots" id="gal-dots"></div>
+          <!-- controle de upload (só admin logado) -->
+          <div class="gal-admin" id="gal-admin" style="display:none;">
+            <input type="file" id="gal-file" accept="image/*" hidden>
+            <button class="gal-upload" id="gal-upload"><i class="fa fa-plus"></i> Adicionar foto</button>
+          </div>
         </div>
       </div>
     </section>
@@ -201,6 +230,17 @@
         <select id="ponto-cat" class="login-input"></select>
         <label class="adm-label">Ícone</label>
         <select id="ponto-icone" class="login-input"></select>
+        <label class="adm-label">Classe</label>
+        <div class="adm-tipo" id="ponto-tipo">
+          <button type="button" class="adm-tipo-btn on" data-tipo="">Comum<span>ponto normal</span></button>
+          <button type="button" class="adm-tipo-btn" data-tipo="refeitorio">Refeitório<span>tem cardápio</span></button>
+        </div>
+        <label class="adm-label">Disponibilidade</label>
+        <div class="adm-tipo" id="ponto-disp">
+          <button type="button" class="adm-tipo-btn on" data-disp="1">Disponível<span>em uso normal</span></button>
+          <button type="button" class="adm-tipo-btn" data-disp="0">Interditado<span>obra / fechado</span></button>
+        </div>
+        <input id="ponto-motivo" class="login-input" placeholder="Motivo (ex: Em obras até 15/07)" maxlength="80" style="display:none;">
         <textarea id="ponto-desc" class="login-input" placeholder="Descrição (opcional)" rows="2"></textarea>
         <button class="adm-loc-btn" id="ponto-loc"><i class="fa fa-map-marker"></i> Escolher local no mapa</button>
         <div class="adm-loc-info" id="ponto-loc-info">Local: não definido</div>
@@ -222,23 +262,95 @@
           <label class="adm-label">Ícone do ponto temporário</label>
           <select id="evento-icone" class="login-input"></select>
         </div>
-        <label class="adm-label">Dias da semana</label>
-        <div class="adm-dias" id="evento-dias"></div>
-        <label class="adm-label">Período (opcional)</label>
-        <div class="adm-row">
-          <input id="evento-inicio" class="login-input" type="date" title="Início">
-          <input id="evento-fim" class="login-input" type="date" title="Fim">
+        <label class="adm-label">Repetição</label>
+        <div class="adm-tipo" id="evento-rep">
+          <button type="button" class="adm-tipo-btn on" data-rep="semanal">Semanal<span>dias da semana</span></button>
+          <button type="button" class="adm-tipo-btn" data-rep="mensal">Mensal<span>1ª/2ª… semana</span></button>
+          <button type="button" class="adm-tipo-btn" data-rep="unica">Única<span>uma data</span></button>
         </div>
-        <label class="adm-label">Horário — o ícone aparece e some sozinho (opcional)</label>
+        <div id="evento-unica-box" style="display:none;">
+          <label class="adm-label">Data do evento</label>
+          <input id="evento-data" class="login-input" type="date">
+        </div>
+        <div id="evento-recorr-box">
+          <div id="evento-semana-box" style="display:none;">
+            <label class="adm-label">Semana do mês</label>
+            <select id="evento-semana" class="login-input">
+              <option value="1">1ª semana</option><option value="2">2ª semana</option>
+              <option value="3">3ª semana</option><option value="4">4ª semana</option>
+              <option value="ultima">Última semana</option>
+            </select>
+          </div>
+          <label class="adm-label">Dias da semana</label>
+          <div class="adm-dias" id="evento-dias"></div>
+          <label class="adm-label">Período (opcional)</label>
+          <div class="adm-row">
+            <input id="evento-inicio" class="login-input" type="date" title="Início">
+            <input id="evento-fim" class="login-input" type="date" title="Fim">
+          </div>
+        </div>
+        <label class="adm-label">Duração — o ícone aparece e some sozinho</label>
+        <div class="adm-hint">Atalho dos tempos de aula (preenche os horários) ou digite livre:</div>
+        <div class="adm-row">
+          <select id="evento-aula-ini" class="login-input"></select>
+          <select id="evento-aula-fim" class="login-input"></select>
+        </div>
         <div class="adm-row">
           <input id="evento-hora-ini" class="login-input" type="time" title="Início">
           <input id="evento-hora-fim" class="login-input" type="time" title="Fim">
         </div>
         <input id="evento-atividade" class="login-input" placeholder="Atividade (ex: Palestra)">
-        <div class="adm-hint" id="evento-hora-hint">Início livre (ex.: 20:00). Na agenda, a marcação cobre os horários-padrão dentro da janela. Sem horário: ativo o dia todo.</div>
+        <div class="adm-hint" id="evento-hora-hint">Sem horário: ativo o dia todo. Ex.: 20:15–22:00 (≈ tempos de aula da noite).</div>
         <textarea id="evento-desc" class="login-input" placeholder="Descrição (opcional)" rows="2"></textarea>
         <div class="login-erro" id="evento-erro"></div>
         <button class="login-btn" id="evento-salvar">Criar evento</button>
+      </div>
+    </div>
+
+    <!-- MODAL: NOVO PRÉDIO / BLOCO (admin) -->
+    <div id="predio-modal" class="adm-modal">
+      <div class="adm-box">
+        <div class="adm-head"><div class="adm-title">Novo prédio / bloco</div><button class="login-close" id="predio-close"><i class="fa fa-times"></i></button></div>
+        <input id="predio-nome" class="login-input" placeholder="Nome (ex: Bloco B)" maxlength="60">
+        <label class="adm-label">Categoria</label>
+        <select id="predio-cat" class="login-input"></select>
+        <label class="adm-label">Ícone</label>
+        <select id="predio-icone" class="login-input"></select>
+        <button class="adm-loc-btn" id="predio-loc"><i class="fa fa-map-marker"></i> Escolher local no mapa</button>
+        <div class="adm-loc-info" id="predio-loc-info">Local: não definido</div>
+        <label class="adm-label">Tipo</label>
+        <div class="adm-tipo" id="predio-tipo">
+          <button type="button" class="adm-tipo-btn on" data-tipo="bloco">Bloco<span>só salas</span></button>
+          <button type="button" class="adm-tipo-btn" data-tipo="predio">Prédio<span>andares → salas</span></button>
+        </div>
+        <label class="adm-label">Disponibilidade</label>
+        <div class="adm-tipo" id="predio-disp">
+          <button type="button" class="adm-tipo-btn on" data-disp="1">Disponível<span>em uso normal</span></button>
+          <button type="button" class="adm-tipo-btn" data-disp="0">Interditado<span>obra / fechado</span></button>
+        </div>
+        <input id="predio-motivo" class="login-input" placeholder="Motivo (ex: Em obras)" maxlength="80" style="display:none;">
+        <div class="adm-hint">Dica: banheiros e instalações sem horário podem ficar só com a disponibilidade (sem programação).</div>
+        <div id="predio-editor"></div>
+        <div class="login-erro" id="predio-erro"></div>
+        <button class="login-btn" id="predio-salvar">Criar</button>
+      </div>
+    </div>
+
+    <!-- MODAL: CARDÁPIO semanal (admin) -->
+    <div id="cardapio-modal" class="adm-modal">
+      <div class="adm-box">
+        <div class="adm-head"><div class="adm-title">Cardápio semanal</div><button class="login-close" id="cardapio-close"><i class="fa fa-times"></i></button></div>
+        <label class="adm-label">Ponto (refeitório)</label>
+        <select id="card-ponto" class="login-input"></select>
+        <label class="adm-label">Semana (segunda → sexta)</label>
+        <div class="adm-row">
+          <input id="card-inicio" class="login-input" type="date" title="Início">
+          <input id="card-fim" class="login-input" type="date" title="Fim">
+        </div>
+        <div class="adm-hint">Um item por linha. Use "Opção vegetariana: ..." para destacar a opção veg.</div>
+        <div id="card-dias"></div>
+        <div class="login-erro" id="card-erro"></div>
+        <button class="login-btn" id="card-salvar">Salvar cardápio</button>
       </div>
     </div>
 

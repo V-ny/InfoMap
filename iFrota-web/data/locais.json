@@ -30,7 +30,99 @@
         "cor": "red",
         "icone": "briefcase",
         "cat": "Administrativo",
-        "desc": "Setor de gestão e administração da instituição."
+        "tipo": "bloco",
+        "desc": "Setor de gestão e administração da instituição.",
+        "salas": [
+            {
+                "nome": "Sala do Diretor",
+                "tipo": "Administração",
+                "agenda": {
+                    "seg": [
+                        [
+                            "09:00",
+                            "Atendimento"
+                        ]
+                    ],
+                    "qua": [
+                        [
+                            "09:00",
+                            "Atendimento"
+                        ]
+                    ]
+                }
+            },
+            {
+                "nome": "Recursos Humanos",
+                "tipo": "Administração",
+                "agenda": {
+                    "seg": [
+                        [
+                            "08:00",
+                            "Atendimento"
+                        ]
+                    ],
+                    "ter": [
+                        [
+                            "08:00",
+                            "Atendimento"
+                        ]
+                    ],
+                    "qua": [
+                        [
+                            "08:00",
+                            "Atendimento"
+                        ]
+                    ],
+                    "qui": [
+                        [
+                            "08:00",
+                            "Atendimento"
+                        ]
+                    ],
+                    "sex": [
+                        [
+                            "08:00",
+                            "Atendimento"
+                        ]
+                    ]
+                }
+            },
+            {
+                "nome": "Financeiro",
+                "tipo": "Administração",
+                "agenda": {
+                    "seg": [
+                        [
+                            "08:00",
+                            "Atendimento"
+                        ]
+                    ],
+                    "qua": [
+                        [
+                            "08:00",
+                            "Atendimento"
+                        ]
+                    ]
+                }
+            },
+            {
+                "nome": "Sala dos Professores",
+                "tipo": "Sala",
+                "fotos": [
+                    "fotos/sala-professores-1.jpg",
+                    "fotos/sala-professores-2.jpg"
+                ]
+            },
+            {
+                "nome": "Banheiro",
+                "tipo": "Banheiro",
+                "disponivel": false,
+                "motivo": "Em manutenção até 30/06"
+            }
+        ],
+        "fotos": [
+            "fotos/castelinho.jpg"
+        ]
     },
     {
         "nome": "Biblioteca",
@@ -91,20 +183,134 @@
         },
         "fotos": [
             "fotos/biblioteca-1.jpg",
-            "fotos/biblioteca-2.jpg",
-            "fotos/biblioteca-3.jpg"
+            "fotos/biblioteca-2.jpg"
         ]
     },
     {
-        "nome": "Prédio Principal",
+        "nome": "Prédio da Graduação",
         "coords": [
-            -22.520178,
-            -43.994086
+            -22.520083,
+            -43.99413
         ],
-        "cor": "orange",
-        "icone": "graduation-cap",
         "cat": "Ensino",
-        "desc": "Bloco central com salas de aula e coordenações."
+        "cor": "blue",
+        "icone": "graduation-cap",
+        "tipo": "predio",
+        "andares": [
+            {
+                "nome": "Térreo",
+                "salas": [
+                    {
+                        "nome": "Secretaria Acadêmica",
+                        "tipo": "Administração"
+                    },
+                    {
+                        "nome": "Banheiros",
+                        "tipo": "Banheiro"
+                    }
+                ]
+            },
+            {
+                "nome": "1º Andar",
+                "salas": [
+                    {
+                        "nome": "Lab. de Informática",
+                        "tipo": "Laboratório",
+                        "evento": {
+                            "nome": "Lab. de Informática",
+                            "dias": [
+                                "seg",
+                                "ter",
+                                "qua",
+                                "qui",
+                                "sex"
+                            ],
+                            "horaInicio": "08:00",
+                            "atividade": "Maratona",
+                            "horaFim": "22:00"
+                        }
+                    },
+                    {
+                        "nome": "Coordenação de Ensino",
+                        "tipo": "Coordenação"
+                    },
+                    {
+                        "nome": "Sala 20",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 21",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 22",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 23",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 24",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 25",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 26",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 27",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Sala 28",
+                        "tipo": "Sala"
+                    }
+                ]
+            },
+            {
+                "nome": "2º Andar",
+                "salas": [
+                    {
+                        "nome": "Lab. de Informática 6",
+                        "tipo": "Laboratório",
+                        "fotos": [
+                            "fotos/lab-informatica-6.jpg"
+                        ]
+                    },
+                    {
+                        "nome": "Lab. de Informática 7",
+                        "tipo": "Laboratório"
+                    },
+                    {
+                        "nome": "Lab. de Informática 8",
+                        "tipo": "Laboratório"
+                    },
+                    {
+                        "nome": "Nerd Zone",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Pod Class",
+                        "tipo": "Sala"
+                    },
+                    {
+                        "nome": "Lab. de Química",
+                        "tipo": "Laboratório",
+                        "fotos": [
+                            "fotos/lab-quimica.jpg"
+                        ]
+                    }
+                ]
+            }
+        ],
+        "fotos": [
+            "fotos/predio-graduacao.jpg"
+        ]
     },
     {
         "nome": "Auditório",
@@ -115,10 +321,13 @@
         "cor": "purple",
         "icone": "bullhorn",
         "cat": "Administrativo",
-        "desc": "Espaço para eventos e apresentações."
+        "desc": "Espaço para eventos e apresentações.",
+        "fotos": [
+            "fotos/auditorio.jpg"
+        ]
     },
     {
-        "nome": "Laboratório de Artes",
+        "nome": "Lab. de Artes",
         "coords": [
             -22.522104,
             -43.990095
@@ -129,7 +338,7 @@
         "desc": "Laboratório para atividades artísticas."
     },
     {
-        "nome": "Cantina",
+        "nome": "Refeitório",
         "coords": [
             -22.52027,
             -43.990411
@@ -137,13 +346,87 @@
         "cor": "cadetblue",
         "icone": "cutlery",
         "cat": "Convivência",
-        "desc": "Serviço de alimentação para alunos e funcionários."
+        "tipo": "refeitorio",
+        "desc": "Refeitório — serviço de alimentação para alunos e funcionários.",
+        "cardapio": {
+            "inicio": "2026-06-29",
+            "fim": "2026-07-03",
+            "obs": "Cardápio sujeito a alterações sem aviso prévio. (placeholder — semana anterior)",
+            "refeicoes": [
+                [
+                    "Almoço",
+                    "11:00 às 13:00"
+                ],
+                [
+                    "Jantar",
+                    "17:00 às 18:20"
+                ]
+            ],
+            "dias": {
+                "seg": [
+                    "Peito de frango ao molho de coco",
+                    "Opção vegetariana: Salada de grão de bico",
+                    "Batata palha",
+                    "Arroz branco",
+                    "Arroz integral",
+                    "Feijão preto",
+                    "Cenoura ralada",
+                    "Laranja",
+                    "Refresco de manga"
+                ],
+                "ter": [
+                    "Sopa de ervilha",
+                    "Sopa de mandioca",
+                    "Feijão tropeiro",
+                    "Opção vegetariana: Sopa de ervilha com cenoura",
+                    "Arroz branco",
+                    "Arroz integral",
+                    "Feijão preto",
+                    "Mix de alface e rúcula",
+                    "Doces",
+                    "Refresco de uva"
+                ],
+                "qua": [
+                    "Pernil assado",
+                    "Opção vegetariana: Salada de feijão fradinho",
+                    "Farofa de linguiça",
+                    "Arroz branco",
+                    "Arroz integral",
+                    "Feijão preto",
+                    "Beterraba cozida",
+                    "Laranja",
+                    "Refresco de maracujá"
+                ],
+                "qui": [
+                    "Carne de panela",
+                    "Opção vegetariana: Salada de soja",
+                    "Cenoura à bechamel",
+                    "Arroz branco",
+                    "Arroz integral",
+                    "Feijão carioca",
+                    "Alface",
+                    "Banana",
+                    "Refresco de caju"
+                ],
+                "sex": [
+                    "Frango ao sugo",
+                    "Opção vegetariana: Estrogonofe de grão de bico",
+                    "Batata doce",
+                    "Arroz branco",
+                    "Arroz integral",
+                    "Feijão preto",
+                    "Mix de folhas e beterraba",
+                    "Maçã",
+                    "Refresco de manga"
+                ]
+            }
+        }
     },
     {
         "nome": "Quadra Poliesportiva",
         "coords": [
-            -22.520471,
-            -43.990526
+            -22.520556,
+            -43.990658
         ],
         "cor": "darkgreen",
         "icone": "futbol-o",
@@ -220,7 +503,7 @@
         "desc": "Estufa para produção de mudas e experimentos."
     },
     {
-        "nome": "Suinocultura",
+        "nome": "Lab. de Suinocultura",
         "coords": [
             -22.52004,
             -43.993464
@@ -231,7 +514,7 @@
         "desc": "Setor de criação de suínos."
     },
     {
-        "nome": "Equinos",
+        "nome": "Lab. de Equinos",
         "coords": [
             -22.520149,
             -43.992557
@@ -240,5 +523,239 @@
         "icone": "paw",
         "cat": "Agropecuária",
         "desc": "Área de manejo e criação de cavalos."
+    },
+    {
+        "nome": "Praça do Relógio de Sol",
+        "coords": [
+            -22.521304,
+            -43.990562
+        ],
+        "cat": "Convivência",
+        "cor": "cadetblue",
+        "icone": "leaf",
+        "desc": "",
+        "fotos": [
+            "fotos/praca-relogio.jpg"
+        ]
+    },
+    {
+        "nome": "Restaurante Estudantil",
+        "coords": [
+            -22.520413,
+            -43.99129
+        ],
+        "cat": "Administrativo",
+        "cor": "red",
+        "icone": "cutlery",
+        "desc": "",
+        "tipo": "refeitorio",
+        "disponivel": false,
+        "motivo": "Em construção",
+        "fotos": [
+            "fotos/restaurante-estudantil.jpg"
+        ]
+    },
+    {
+        "nome": "Bloco 2",
+        "coords": [
+            -22.520759,
+            -43.991171
+        ],
+        "cat": "Ensino",
+        "cor": "blue",
+        "icone": "building",
+        "tipo": "bloco",
+        "salas": [
+            {
+                "nome": "Sala 9",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 10",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 11",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 12",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 13",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 14",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Banheiro",
+                "tipo": "Banheiro"
+            }
+        ]
+    },
+    {
+        "nome": "Bloco 1",
+        "coords": [
+            -22.521262,
+            -43.991215
+        ],
+        "cat": "Ensino",
+        "cor": "blue",
+        "icone": "building",
+        "tipo": "bloco",
+        "salas": [
+            {
+                "nome": "Lab. de Montagem de Computadores",
+                "tipo": "Laboratório"
+            },
+            {
+                "nome": "Sala 1",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 2",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 3",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 4",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 5",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 6",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 7",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 8",
+                "tipo": "Sala"
+            }
+        ]
+    },
+    {
+        "nome": "Campo de Futebol",
+        "coords": [
+            -22.521117,
+            -43.989796
+        ],
+        "cat": "Esporte",
+        "cor": "darkgreen",
+        "icone": "futbol-o",
+        "desc": ""
+    },
+    {
+        "nome": "Alojamentos",
+        "coords": [
+            -22.520453,
+            -43.989737
+        ],
+        "cat": "Convivência",
+        "cor": "cadetblue",
+        "icone": "building",
+        "tipo": "bloco",
+        "salas": [
+            {
+                "nome": "Alojamentos",
+                "tipo": "Administração"
+            }
+        ]
+    },
+    {
+        "nome": "CANP",
+        "coords": [
+            -22.520898,
+            -43.990461
+        ],
+        "cat": "Administrativo",
+        "cor": "red",
+        "icone": "briefcase",
+        "desc": ""
+    },
+    {
+        "nome": "Bloco 3",
+        "coords": [
+            -22.521371,
+            -43.990256
+        ],
+        "cat": "Ensino",
+        "cor": "blue",
+        "icone": "building",
+        "tipo": "bloco",
+        "salas": [
+            {
+                "nome": "Sala 15",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 16",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 17",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 18",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Sala 19",
+                "tipo": "Sala"
+            },
+            {
+                "nome": "Banheiro",
+                "tipo": "Banheiro"
+            }
+        ]
+    },
+    {
+        "nome": "Centro de Visitantes",
+        "coords": [
+            -22.52206,
+            -43.99055
+        ],
+        "cat": "Administrativo",
+        "cor": "red",
+        "icone": "book",
+        "desc": "",
+        "fotos": [
+            "fotos/centro-visitantes-1.jpg",
+            "fotos/centro-visitantes-2.jpg"
+        ]
+    },
+    {
+        "nome": "Lab. de Apicultura",
+        "coords": [
+            -22.521074,
+            -43.988356
+        ],
+        "cat": "Ensino",
+        "cor": "blue",
+        "icone": "paw",
+        "desc": ""
+    },
+    {
+        "nome": "PH",
+        "coords": [
+            -22.52179,
+            -43.990993
+        ],
+        "cat": "Administrativo",
+        "cor": "red",
+        "icone": "briefcase",
+        "desc": ""
     }
 ]

@@ -8,6 +8,8 @@ let watchId = null;
 let manualMode = false;
 let _map = null;
 let _onUpdate = null;   // callback(latlon) — main usa pra tracking/reroute
+let _noCampus = null;   // predicado (lat,lon)=>bool — só aceita posição dentro do campus
+let _onForaCampus = null;   // callback() — avisa quando o toque cai fora do campus
 
 function criarMarcadorUsuario(map, lat, lon) {
   if (userMarker) {
@@ -22,9 +24,11 @@ function criarMarcadorUsuario(map, lat, lon) {
   return userMarker;
 }
 
-export function initLocation(map, { onUpdate } = {}) {
+export function initLocation(map, { onUpdate, noCampus, onForaCampus } = {}) {
   _map = map;
   _onUpdate = onUpdate;
+  _noCampus = noCampus || null;
+  _onForaCampus = onForaCampus || null;
 
   // Restaura último ponto conhecido (se houver) já mostrando o marcador
   const last = store.getLastPos();
@@ -34,6 +38,11 @@ export function initLocation(map, { onUpdate } = {}) {
   map.on("click", (e) => {
     if (!manualMode) return;
     const lat = e.lngLat.lat, lon = e.lngLat.lng;
+    // Igual ao GPS: só aceita posição DENTRO da área delimitada do campus.
+    if (_noCampus && !_noCampus(lat, lon)) {
+      _onForaCampus?.();
+      return;   // mantém o modo manual ativo p/ o usuário tocar dentro
+    }
     setPosicao(lat, lon);
     setManualMode(false);
   });

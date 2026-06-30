@@ -1,6 +1,6 @@
 {
-  "name": "IFrota — Mapa do Campus",
-  "short_name": "IFrota",
+  "name": "IF-rota — Mapa do Campus",
+  "short_name": "IF-rota",
   "description": "Mapa interativo e navegação do campus.",
   "start_url": "./index.html",
   "scope": "./",

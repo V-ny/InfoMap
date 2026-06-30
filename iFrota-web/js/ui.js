@@ -3,7 +3,8 @@
 import { store } from "./store.js";
 import { selecionarMarcador, limparSelecao, filtrarPorCategoria } from "./markers.js";
 import { haversine, formatarDistancia } from "./geo.js";
-import { HORARIOS_PADRAO, eventoAtivoHoje, eventoAtivoAgora, agoraReal } from "./eventos.js";
+import { HORARIOS_PADRAO, eventoAtivoHoje, eventoAtivoAgora, agoraReal, eventoAtivoNoContainer, formatarJanela } from "./eventos.js";
+import { somPonto, sonsAtivos, setSons } from "./sons.js";
 // Backend de fotos: LOCAL (IndexedDB + login local). Pra usar o Firebase (nuvem),
 // veja docs/IMPLEMENTACAO-FUTURA-FIREBASE.md.
 import { fotosAtivo, registrar, login, logout, onAuth, ehAdmin, listarFotos, enviarFoto, removerFoto } from "./fotos-store.js";
@@ -11,6 +12,8 @@ import {
   addLocalCustom, getLocaisCustom, removeLocalCustom,
   addEventoCustom, getEventosCustom, removeEventoCustom,
   getDesativados, desativarBase,
+  getCardapios, setCardapio,
+  exportarDados, importarDados, limparTudoCustom,
 } from "./admin-store.js";
 
 // Categorias (espelha CATEGORIAS do IFrota.py) com ícone FA por categoria
@@ -61,6 +64,20 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     cb.onThemeChange?.(dark);
   };
   refreshThemeIcon();
+
+  // ── SOM (feedback sonoro sutil — liga/desliga) ──
+  function refreshSomIcon() {
+    $("btn-som").innerHTML = sonsAtivos()
+      ? '<i class="fa fa-volume-up"></i>'
+      : '<i class="fa fa-volume-off"></i>';
+  }
+  $("btn-som").onclick = () => {
+    const on = !sonsAtivos();
+    setSons(on);
+    refreshSomIcon();
+    if (on) somPonto();   // confirma e libera o áudio neste gesto
+  };
+  refreshSomIcon();
 
   // ── SIDE PANEL ──
   function openPanel() {
@@ -174,24 +191,62 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   }
   function openAdmModal(id) { $(id).classList.add("open"); }
   function closeAdmModal(id) { $(id).classList.remove("open"); }
-  [["ponto-modal", "ponto-close"], ["evento-modal", "evento-close"], ["gerenciar-modal", "gerenciar-close"]]
+  [["ponto-modal", "ponto-close"], ["evento-modal", "evento-close"], ["gerenciar-modal", "gerenciar-close"], ["predio-modal", "predio-close"], ["cardapio-modal", "cardapio-close"]]
     .forEach(([mid, cid]) => {
       $(cid).onclick = () => closeAdmModal(mid);
       $(mid).addEventListener("click", (e) => { if (e.target === $(mid)) closeAdmModal(mid); });
     });
 
-  // ----- NOVO PONTO -----
-  let pontoCoords = null;
+  // ----- NOVO / EDITAR PONTO -----
+  let pontoCoords = null, pontoTipo = "", editandoPonto = null, pontoDisp = "1";
+  [...$("ponto-tipo").children].forEach((b) => {
+    b.onclick = () => {
+      pontoTipo = b.dataset.tipo;
+      [...$("ponto-tipo").children].forEach((x) => x.classList.toggle("on", x === b));
+    };
+  });
+  // disponibilidade (interdição / obra)
+  function setPontoDisp(disponivel) {
+    pontoDisp = disponivel ? "1" : "0";
+    [...$("ponto-disp").children].forEach((x) => x.classList.toggle("on", x.dataset.disp === pontoDisp));
+    $("ponto-motivo").style.display = pontoDisp === "0" ? "" : "none";
+  }
+  [...$("ponto-disp").children].forEach((b) => {
+    b.onclick = () => setPontoDisp(b.dataset.disp === "1");
+  });
+  function pontoModalTitulo(t) { $("ponto-modal").querySelector(".adm-title").textContent = t; }
   $("pb-novo-ponto").onclick = () => {
     closePanel();
-    pontoCoords = null;
+    pontoCoords = null; pontoTipo = ""; editandoPonto = null;
+    [...$("ponto-tipo").children].forEach((x) => x.classList.toggle("on", x.dataset.tipo === ""));
     $("ponto-nome").value = ""; $("ponto-desc").value = "";
+    $("ponto-motivo").value = ""; setPontoDisp(true);
     $("ponto-erro").textContent = "";
     $("ponto-loc-info").textContent = "Local: não definido"; $("ponto-loc-info").classList.remove("ok");
     fillSelect($("ponto-cat"), CATS_ADMIN, (c) => ({ value: c, label: c }));
     fillSelect($("ponto-icone"), ICONES_ADMIN, (i) => ({ value: i.icone, label: i.nome }));
+    pontoModalTitulo("Novo ponto de interesse");
     openAdmModal("ponto-modal");
   };
+  // Edita um ponto simples (preserva agenda/fotos/cardápio que o form não toca).
+  function abrirEditorPonto(local) {
+    closePanel();
+    editandoPonto = local;
+    pontoCoords = local.coords || null;
+    pontoTipo = local.tipo === "refeitorio" ? "refeitorio" : "";
+    [...$("ponto-tipo").children].forEach((x) => x.classList.toggle("on", x.dataset.tipo === pontoTipo));
+    $("ponto-nome").value = local.nome || ""; $("ponto-desc").value = local.desc || "";
+    $("ponto-motivo").value = local.motivo || ""; setPontoDisp(local.disponivel !== false);
+    $("ponto-erro").textContent = "";
+    $("ponto-loc-info").textContent = pontoCoords ? `Local: ${pontoCoords[0].toFixed(5)}, ${pontoCoords[1].toFixed(5)}` : "Local: não definido";
+    $("ponto-loc-info").classList.toggle("ok", !!pontoCoords);
+    fillSelect($("ponto-cat"), CATS_ADMIN, (c) => ({ value: c, label: c }));
+    $("ponto-cat").value = local.cat || CATS_ADMIN[0];
+    fillSelect($("ponto-icone"), ICONES_ADMIN, (i) => ({ value: i.icone, label: i.nome }));
+    $("ponto-icone").value = local.icone || "map-marker";
+    pontoModalTitulo("Editar ponto");
+    openAdmModal("ponto-modal");
+  }
   $("ponto-loc").onclick = () => {
     closeAdmModal("ponto-modal");
     cb.onPedirLocalMapa?.((latlon) => {
@@ -206,13 +261,31 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     if (!nome) { $("ponto-erro").textContent = "Informe o nome."; return; }
     if (!pontoCoords) { $("ponto-erro").textContent = "Escolha o local no mapa."; return; }
     const cat = $("ponto-cat").value;
-    addLocalCustom({
-      nome, coords: pontoCoords, cat, cor: CAT_COR[cat] || "green",
-      icone: $("ponto-icone").value, desc: $("ponto-desc").value.trim(),
-    });
+    let novo;
+    if (editandoPonto) {
+      // preserva campos que o form não edita (agenda, fotos, cardapio, salas...)
+      novo = { ...editandoPonto };
+      ["isEvento", "evento", "cor_hex", "_temp", "custom"].forEach((k) => delete novo[k]);
+      novo.coords = pontoCoords;
+    } else {
+      novo = { nome, coords: pontoCoords };
+    }
+    novo.nome = nome; novo.cat = cat; novo.cor = CAT_COR[cat] || "green";
+    novo.icone = $("ponto-icone").value; novo.desc = $("ponto-desc").value.trim();
+    if (pontoTipo === "refeitorio") novo.tipo = "refeitorio"; else delete novo.tipo;
+    // disponibilidade (interdição / obra)
+    if (pontoDisp === "0") {
+      novo.disponivel = false;
+      const m = $("ponto-motivo").value.trim();
+      if (m) novo.motivo = m; else delete novo.motivo;
+    } else { delete novo.disponivel; delete novo.motivo; }
+    // upsert por nome
+    removeLocalCustom(nome);
+    if (editandoPonto && editandoPonto.nome !== nome) removeLocalCustom(editandoPonto.nome);
+    addLocalCustom(novo);
     closeAdmModal("ponto-modal");
     cb.onAdminChange?.();
-    showToast("📍 Ponto criado");
+    showToast(editandoPonto ? "✏️ Atualizado" : (pontoTipo === "refeitorio" ? "🍽️ Refeitório criado" : "📍 Ponto criado"));
   };
 
   // ----- NOVO EVENTO -----
@@ -229,12 +302,42 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   function waypointsSelecionaveis() {
     return locais.filter((l) => !l._temp);   // exclui marcadores temporários de evento
   }
+  // Atalho dos tempos de aula → preenche os campos de hora livres.
+  function preencherAulaSelects() {
+    const set = new Set();
+    HORARIOS_PADRAO.forEach(({ slots }) => slots.forEach(([a, b]) => { set.add(a); set.add(b); }));
+    const horas = [...set].sort();
+    const ini = $("evento-aula-ini"), fim = $("evento-aula-fim");
+    ini.innerHTML = '<option value="">Início (aula)…</option>';
+    fim.innerHTML = '<option value="">Fim (aula)…</option>';
+    horas.forEach((h) => { ini.appendChild(new Option(h, h)); fim.appendChild(new Option(h, h)); });
+  }
+  $("evento-aula-ini").onchange = (e) => { if (e.target.value) $("evento-hora-ini").value = e.target.value; };
+  $("evento-aula-fim").onchange = (e) => { if (e.target.value) $("evento-hora-fim").value = e.target.value; };
+  // Repetição: Semanal / Mensal / Única — mostra/esconde os campos certos.
+  let eventoRep = "semanal";
+  function aplicarRepeticaoUI() {
+    $("evento-unica-box").style.display = eventoRep === "unica" ? "" : "none";
+    $("evento-recorr-box").style.display = eventoRep === "unica" ? "none" : "";
+    $("evento-semana-box").style.display = eventoRep === "mensal" ? "" : "none";
+  }
+  [...$("evento-rep").children].forEach((b) => {
+    b.onclick = () => {
+      eventoRep = b.dataset.rep;
+      [...$("evento-rep").children].forEach((x) => x.classList.toggle("on", x === b));
+      aplicarRepeticaoUI();
+    };
+  });
   $("pb-novo-evento").onclick = () => {
     closePanel();
     eventoCoords = null;
     ["evento-nome", "evento-desc", "evento-inicio", "evento-fim", "evento-atividade",
-     "evento-hora-ini", "evento-hora-fim"]
+     "evento-hora-ini", "evento-hora-fim", "evento-data"]
       .forEach((id) => { $(id).value = ""; });
+    eventoRep = "semanal";
+    [...$("evento-rep").children].forEach((x) => x.classList.toggle("on", x.dataset.rep === "semanal"));
+    aplicarRepeticaoUI();
+    preencherAulaSelects();
     $("evento-erro").textContent = "";
     $("evento-loc-info").textContent = "Local: não definido"; $("evento-loc-info").classList.remove("ok");
     $("evento-temp").style.display = "none";
@@ -264,14 +367,25 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   $("evento-salvar").onclick = () => {
     const nome = $("evento-nome").value.trim();
     const alvo = $("evento-alvo").value;
-    const dias = [...$("evento-dias").querySelectorAll(".adm-dia.on")].map((b) => b.dataset.dia);
     if (!nome) { $("evento-erro").textContent = "Informe o nome do evento."; return; }
     if (!alvo) { $("evento-erro").textContent = "Escolha onde o evento acontece."; return; }
-    if (!dias.length) { $("evento-erro").textContent = "Selecione ao menos um dia."; return; }
-    const ev = { nome, dias, desc: $("evento-desc").value.trim() };
-    const ini = $("evento-inicio").value, fim = $("evento-fim").value;
-    if (ini) ev.inicio = ini;
-    if (fim) ev.fim = fim;
+    const ev = { nome, desc: $("evento-desc").value.trim() };
+    let dias;
+    if (eventoRep === "unica") {
+      const data = $("evento-data").value;
+      if (!data) { $("evento-erro").textContent = "Escolha a data do evento."; return; }
+      ev.repete = "unica"; ev.data = data;
+      dias = [["dom", "seg", "ter", "qua", "qui", "sex", "sab"][new Date(data + "T00:00:00").getDay()]];
+      ev.dias = dias;   // dia da semana derivado (p/ a agenda/horários)
+    } else {
+      dias = [...$("evento-dias").querySelectorAll(".adm-dia.on")].map((b) => b.dataset.dia);
+      if (!dias.length) { $("evento-erro").textContent = "Selecione ao menos um dia."; return; }
+      ev.dias = dias;
+      const ini = $("evento-inicio").value, fim = $("evento-fim").value;
+      if (ini) ev.inicio = ini;
+      if (fim) ev.fim = fim;
+      if (eventoRep === "mensal") { ev.repete = "mensal"; ev.semanaMes = $("evento-semana").value; }
+    }
     const hIni = $("evento-hora-ini").value, hFim = $("evento-hora-fim").value;
     const atv = $("evento-atividade").value.trim();
     if (hIni && hFim && hFim <= hIni) {
@@ -294,6 +408,311 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     closeAdmModal("evento-modal");
     cb.onAdminChange?.();
     showToast("⭐ Evento criado");
+  };
+
+  // ----- NOVO / EDITAR PRÉDIO / BLOCO -----
+  const TIPOS_SALA = ["Sala", "Laboratório", "Banheiro", "Administração", "Auditório", "Coordenação", "Biblioteca"];
+  let predioCoords = null, editandoNome = null, predioDisp = "1";   // editandoNome != null → modo edição
+  // Modelo em edição (reconstruído na tela a cada add/remove/toggle).
+  let ed = { tipo: "bloco", salas: [], andares: [] };
+  function setPredioDisp(disponivel) {
+    predioDisp = disponivel ? "1" : "0";
+    [...$("predio-disp").children].forEach((x) => x.classList.toggle("on", x.dataset.disp === predioDisp));
+    $("predio-motivo").style.display = predioDisp === "0" ? "" : "none";
+  }
+  [...$("predio-disp").children].forEach((b) => {
+    b.onclick = () => setPredioDisp(b.dataset.disp === "1");
+  });
+
+  function novaSala() { return { nome: "", tipo: "Sala", evento: null, disponivel: true, motivo: "" }; }
+  function novoAndar() { return { nome: "", salas: [novaSala()] }; }
+  function clonarSalaEd(s) {
+    return {
+      nome: s.nome || "", tipo: s.tipo || "Sala",
+      disponivel: s.disponivel !== false, motivo: s.motivo || "",
+      evento: s.evento ? {
+        nome: s.evento.nome || s.nome, dias: (s.evento.dias || []).slice(),
+        horaInicio: s.evento.horaInicio || "", horaFim: s.evento.horaFim || "", atividade: s.evento.atividade || "",
+      } : null,
+    };
+  }
+  function predioModalTitulo(t) { $("predio-modal").querySelector(".adm-title").textContent = t; }
+
+  // Carrega um prédio/bloco existente no editor (edição → sobrepõe por nome ao salvar).
+  function abrirEditorPredio(local) {
+    closePanel();
+    editandoNome = local.nome;
+    predioCoords = local.coords || null;
+    ed = local.andares
+      ? { tipo: "predio", salas: [novaSala()], andares: local.andares.map((a) => ({ nome: a.nome || "", salas: (a.salas || []).map(clonarSalaEd) })) }
+      : { tipo: "bloco", salas: (local.salas || []).map(clonarSalaEd), andares: [novoAndar()] };
+    $("predio-nome").value = local.nome || ""; $("predio-erro").textContent = "";
+    $("predio-motivo").value = local.motivo || ""; setPredioDisp(local.disponivel !== false);
+    $("predio-loc-info").textContent = predioCoords ? `Local: ${predioCoords[0].toFixed(5)}, ${predioCoords[1].toFixed(5)}` : "Local: não definido";
+    $("predio-loc-info").classList.toggle("ok", !!predioCoords);
+    fillSelect($("predio-cat"), CATS_ADMIN, (c) => ({ value: c, label: c }));
+    $("predio-cat").value = local.cat || CATS_ADMIN[0];
+    fillSelect($("predio-icone"), ICONES_ADMIN, (i) => ({ value: i.icone, label: i.nome }));
+    $("predio-icone").value = local.icone || "building";
+    [...$("predio-tipo").children].forEach((b) => b.classList.toggle("on", b.dataset.tipo === ed.tipo));
+    renderEditorPredio();
+    predioModalTitulo("Editar prédio / bloco");
+    openAdmModal("predio-modal");
+  }
+
+  $("pb-novo-predio").onclick = () => {
+    closePanel();
+    predioCoords = null; editandoNome = null;
+    ed = { tipo: "bloco", salas: [novaSala()], andares: [novoAndar()] };
+    $("predio-nome").value = ""; $("predio-erro").textContent = "";
+    $("predio-motivo").value = ""; setPredioDisp(true);
+    $("predio-loc-info").textContent = "Local: não definido"; $("predio-loc-info").classList.remove("ok");
+    fillSelect($("predio-cat"), CATS_ADMIN, (c) => ({ value: c, label: c }));
+    fillSelect($("predio-icone"), ICONES_ADMIN, (i) => ({ value: i.icone, label: i.nome }));
+    $("predio-icone").value = "building";
+    [...$("predio-tipo").children].forEach((b) => b.classList.toggle("on", b.dataset.tipo === ed.tipo));
+    renderEditorPredio();
+    predioModalTitulo("Novo prédio / bloco");
+    openAdmModal("predio-modal");
+  };
+  [...$("predio-tipo").children].forEach((b) => {
+    b.onclick = () => {
+      ed.tipo = b.dataset.tipo;
+      [...$("predio-tipo").children].forEach((x) => x.classList.toggle("on", x === b));
+      renderEditorPredio();
+    };
+  });
+  $("predio-loc").onclick = () => {
+    closeAdmModal("predio-modal");
+    cb.onPedirLocalMapa?.((latlon) => {
+      predioCoords = latlon;
+      $("predio-loc-info").textContent = `Local: ${latlon[0].toFixed(5)}, ${latlon[1].toFixed(5)}`;
+      $("predio-loc-info").classList.add("ok");
+      openAdmModal("predio-modal");
+    });
+  };
+
+  // Sub-bloco de configuração de evento de uma sala (dias + horário + atividade).
+  function editorEventoSala(sala) {
+    const box = document.createElement("div");
+    box.className = "ed-evento";
+    const tem = !!sala.evento;
+    const head = document.createElement("label");
+    head.className = "ed-ev-toggle";
+    head.innerHTML = `<input type="checkbox" ${tem ? "checked" : ""}> <i class="fa fa-star"></i> Evento nesta sala`;
+    head.querySelector("input").onchange = (e) => {
+      sala.evento = e.target.checked
+        ? { nome: sala.nome || "Evento", dias: [], horaInicio: "", horaFim: "", atividade: "" }
+        : null;
+      renderEditorPredio();
+    };
+    box.appendChild(head);
+    if (tem) {
+      const dias = document.createElement("div");
+      dias.className = "adm-dias";
+      DIAS_ADMIN.forEach(([key, letra]) => {
+        const b = document.createElement("button");
+        b.type = "button"; b.className = "adm-dia" + (sala.evento.dias.includes(key) ? " on" : "");
+        b.textContent = letra;
+        b.onclick = () => {
+          const i = sala.evento.dias.indexOf(key);
+          if (i >= 0) sala.evento.dias.splice(i, 1); else sala.evento.dias.push(key);
+          b.classList.toggle("on");
+        };
+        dias.appendChild(b);
+      });
+      box.appendChild(dias);
+      const row = document.createElement("div");
+      row.className = "adm-row";
+      row.innerHTML =
+        `<input class="login-input ed-ini" type="time" title="Início" value="${sala.evento.horaInicio || ""}">` +
+        `<input class="login-input ed-fim" type="time" title="Fim" value="${sala.evento.horaFim || ""}">`;
+      row.querySelector(".ed-ini").oninput = (e) => { sala.evento.horaInicio = e.target.value; };
+      row.querySelector(".ed-fim").oninput = (e) => { sala.evento.horaFim = e.target.value; };
+      box.appendChild(row);
+      const atv = document.createElement("input");
+      atv.className = "login-input"; atv.placeholder = "Atividade (ex: Maratona)"; atv.value = sala.evento.atividade || "";
+      atv.oninput = (e) => { sala.evento.atividade = e.target.value; };
+      box.appendChild(atv);
+    }
+    return box;
+  }
+
+  // Linha de edição de uma sala (nome + tipo + remover + evento).
+  function editorSala(sala, onRemove) {
+    const wrap = document.createElement("div");
+    wrap.className = "ed-sala" + (sala.disponivel === false ? " interdito" : "");
+    const top = document.createElement("div");
+    top.className = "ed-sala-top";
+    const nome = document.createElement("input");
+    nome.className = "login-input"; nome.placeholder = "Nome da sala"; nome.value = sala.nome;
+    nome.oninput = (e) => { sala.nome = e.target.value; };
+    const tipo = document.createElement("select");
+    tipo.className = "login-input ed-tipo";
+    TIPOS_SALA.forEach((t) => { const o = document.createElement("option"); o.value = t; o.textContent = t; tipo.appendChild(o); });
+    tipo.value = sala.tipo;
+    tipo.onchange = (e) => { sala.tipo = e.target.value; };
+    const del = document.createElement("button");
+    del.type = "button"; del.className = "ed-del"; del.innerHTML = '<i class="fa fa-trash"></i>';
+    del.onclick = onRemove;
+    top.appendChild(nome); top.appendChild(tipo); top.appendChild(del);
+    wrap.appendChild(top);
+    // Disponibilidade — banheiros e instalações sem horário usam SÓ isto (sem programação).
+    const disp = document.createElement("label");
+    disp.className = "ed-disp";
+    disp.innerHTML = `<input type="checkbox" ${sala.disponivel === false ? "" : "checked"}> <i class="fa fa-ban"></i> Disponível (desmarque p/ interditar)`;
+    const motivo = document.createElement("input");
+    motivo.className = "login-input ed-motivo";
+    motivo.placeholder = "Motivo da interdição (ex: Em obras)";
+    motivo.value = sala.motivo || "";
+    motivo.style.display = sala.disponivel === false ? "" : "none";
+    disp.querySelector("input").onchange = (e) => {
+      sala.disponivel = e.target.checked;
+      motivo.style.display = e.target.checked ? "none" : "";
+      wrap.classList.toggle("interdito", !e.target.checked);
+      if (e.target.checked) { sala.motivo = ""; motivo.value = ""; }
+    };
+    motivo.oninput = (e) => { sala.motivo = e.target.value; };
+    wrap.appendChild(disp); wrap.appendChild(motivo);
+    wrap.appendChild(editorEventoSala(sala));
+    return wrap;
+  }
+
+  function botaoAdd(txt, onClick) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "ed-add"; b.innerHTML = `<i class="fa fa-plus"></i> ${txt}`;
+    b.onclick = onClick;
+    return b;
+  }
+
+  function renderEditorPredio() {
+    const box = $("predio-editor"); box.innerHTML = "";
+    if (ed.tipo === "bloco") {
+      const lbl = document.createElement("label"); lbl.className = "adm-label"; lbl.textContent = "Salas"; box.appendChild(lbl);
+      ed.salas.forEach((sala, i) => box.appendChild(editorSala(sala, () => { ed.salas.splice(i, 1); renderEditorPredio(); })));
+      box.appendChild(botaoAdd("Adicionar sala", () => { ed.salas.push(novaSala()); renderEditorPredio(); }));
+    } else {
+      ed.andares.forEach((andar, ai) => {
+        const card = document.createElement("div"); card.className = "ed-andar";
+        const head = document.createElement("div"); head.className = "ed-andar-head";
+        const nome = document.createElement("input");
+        nome.className = "login-input"; nome.placeholder = "Andar (ex: Térreo, 1º Andar)"; nome.value = andar.nome;
+        nome.oninput = (e) => { andar.nome = e.target.value; };
+        const del = document.createElement("button");
+        del.type = "button"; del.className = "ed-del"; del.innerHTML = '<i class="fa fa-trash"></i>';
+        del.onclick = () => { ed.andares.splice(ai, 1); renderEditorPredio(); };
+        head.appendChild(nome); head.appendChild(del); card.appendChild(head);
+        andar.salas.forEach((sala, si) => card.appendChild(editorSala(sala, () => { andar.salas.splice(si, 1); renderEditorPredio(); })));
+        card.appendChild(botaoAdd("Adicionar sala", () => { andar.salas.push(novaSala()); renderEditorPredio(); }));
+        box.appendChild(card);
+      });
+      box.appendChild(botaoAdd("Adicionar andar", () => { ed.andares.push(novoAndar()); renderEditorPredio(); }));
+    }
+  }
+
+  // Limpa o modelo p/ salvar: remove salas sem nome e eventos incompletos.
+  function limparSala(s) {
+    const out = { nome: s.nome.trim(), tipo: s.tipo };
+    if (s.disponivel === false) {
+      out.disponivel = false;
+      const m = (s.motivo || "").trim();
+      if (m) out.motivo = m;
+    }
+    if (s.evento && s.evento.dias.length && s.evento.horaInicio) {
+      out.evento = {
+        nome: (s.nome.trim() || "Evento"), dias: s.evento.dias.slice(),
+        horaInicio: s.evento.horaInicio, atividade: (s.evento.atividade || "").trim(),
+      };
+      if (s.evento.horaFim) out.evento.horaFim = s.evento.horaFim;
+    }
+    return out;
+  }
+  $("predio-salvar").onclick = () => {
+    const nome = $("predio-nome").value.trim();
+    if (!nome) { $("predio-erro").textContent = "Informe o nome."; return; }
+    if (!predioCoords) { $("predio-erro").textContent = "Escolha o local no mapa."; return; }
+    const cat = $("predio-cat").value;
+    const base = { nome, coords: predioCoords, cat, cor: CAT_COR[cat] || "green", icone: $("predio-icone").value, tipo: ed.tipo };
+    if (predioDisp === "0") {
+      base.disponivel = false;
+      const m = $("predio-motivo").value.trim();
+      if (m) base.motivo = m;
+    }
+    if (ed.tipo === "bloco") {
+      const salas = ed.salas.filter((s) => s.nome.trim()).map(limparSala);
+      if (!salas.length) { $("predio-erro").textContent = "Adicione ao menos uma sala."; return; }
+      base.salas = salas;
+    } else {
+      const andares = ed.andares
+        .map((a) => ({ nome: a.nome.trim(), salas: a.salas.filter((s) => s.nome.trim()).map(limparSala) }))
+        .filter((a) => a.nome && a.salas.length);
+      if (!andares.length) { $("predio-erro").textContent = "Adicione ao menos um andar com salas."; return; }
+      base.andares = andares;
+    }
+    // upsert por nome: edição sobrepõe o existente (inclui os do JSON, por sombra)
+    removeLocalCustom(base.nome);
+    if (editandoNome && editandoNome !== base.nome) removeLocalCustom(editandoNome);
+    addLocalCustom(base);
+    closeAdmModal("predio-modal");
+    cb.onAdminChange?.();
+    showToast(editandoNome ? "✏️ Atualizado" : (ed.tipo === "predio" ? "🏢 Prédio criado" : "🧱 Bloco criado"));
+  };
+
+  // ----- CARDÁPIO (admin) -----
+  function cardapioDoPonto(nome) {
+    const over = getCardapios()[nome];
+    if (over) return over;
+    const l = locais.find((x) => x.nome === nome);
+    return (l && l.cardapio) || null;
+  }
+  function carregarCardapioNoForm(nome) {
+    const c = cardapioDoPonto(nome) || {};
+    $("card-inicio").value = c.inicio || "";
+    $("card-fim").value = c.fim || "";
+    const wrap = $("card-dias"); wrap.innerHTML = "";
+    DIAS_CARD.forEach(([key, label]) => {
+      const lbl = document.createElement("label"); lbl.className = "adm-label"; lbl.textContent = label;
+      const ta = document.createElement("textarea");
+      ta.className = "login-input"; ta.rows = 4; ta.dataset.dia = key;
+      ta.value = ((c.dias && c.dias[key]) || []).join("\n");
+      wrap.appendChild(lbl); wrap.appendChild(ta);
+    });
+  }
+  $("pb-cardapio").onclick = () => {
+    closePanel();
+    $("card-erro").textContent = "";
+    const sel = $("card-ponto"); sel.innerHTML = "";
+    // cardápio só para pontos com classe de alimentação (refeitório)
+    const pts = locais.filter((l) => l.tipo === "refeitorio");
+    if (!pts.length) {
+      showToast("Crie um ponto do tipo Refeitório primeiro");
+      return;
+    }
+    pts.forEach((l) => { const o = document.createElement("option"); o.value = l.nome; o.textContent = l.nome; sel.appendChild(o); });
+    carregarCardapioNoForm(sel.value);
+    openAdmModal("cardapio-modal");
+  };
+  $("card-ponto").onchange = () => carregarCardapioNoForm($("card-ponto").value);
+  $("card-salvar").onclick = () => {
+    const nome = $("card-ponto").value;
+    if (!nome) { $("card-erro").textContent = "Escolha o ponto."; return; }
+    const dias = {};
+    [...$("card-dias").querySelectorAll("textarea")].forEach((ta) => {
+      const itens = ta.value.split("\n").map((s) => s.trim()).filter(Boolean);
+      if (itens.length) dias[ta.dataset.dia] = itens;
+    });
+    if (!Object.keys(dias).length) { $("card-erro").textContent = "Preencha ao menos um dia."; return; }
+    const base = cardapioDoPonto(nome) || {};
+    setCardapio(nome, {
+      inicio: $("card-inicio").value || base.inicio || "",
+      fim: $("card-fim").value || base.fim || "",
+      obs: base.obs || "Cardápio sujeito a alterações sem aviso prévio.",
+      refeicoes: base.refeicoes || [["Almoço", "11:00 às 13:00"], ["Jantar", "17:00 às 18:20"]],
+      dias,
+    });
+    closeAdmModal("cardapio-modal");
+    cb.onAdminChange?.();
+    showToast("🍽️ Cardápio atualizado");
   };
 
   // ----- GERENCIAR -----
@@ -346,6 +765,42 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   }
   $("pb-gerenciar").onclick = () => { closePanel(); renderGerenciar(); openAdmModal("gerenciar-modal"); };
 
+  // ----- EXPORTAR / IMPORTAR (backup das edições do admin → arquivo JSON) -----
+  $("pb-exportar").onclick = () => {
+    const dados = exportarDados();
+    const blob = new Blob([JSON.stringify(dados, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "ifrota-dados.json";
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 2000);
+    closePanel();
+    showToast(`💾 Exportado: ${dados.locais.length} pontos, ${dados.eventos.length} eventos`);
+  };
+  $("pb-limpar").onclick = () => {
+    if (!confirm("Limpar tudo que foi criado/editado localmente neste navegador? (os pontos já gravados no app permanecem)")) return;
+    limparTudoCustom();
+    closePanel();
+    cb.onAdminChange?.();
+    showToast("🧹 Dados locais limpos");
+  };
+  $("pb-importar").onclick = () => $("import-file").click();
+  $("import-file").onchange = async (e) => {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = "";   // permite reimportar o mesmo arquivo
+    if (!file) return;
+    try {
+      const obj = JSON.parse(await file.text());
+      const r = importarDados(obj, { mesclar: true });
+      closePanel();
+      cb.onAdminChange?.();   // remonta dados + marcadores
+      showToast(`✅ Importado: ${r.locais} pontos, ${r.eventos} eventos`);
+    } catch (err) {
+      showToast("Erro ao importar: " + (err.message || "arquivo inválido"));
+    }
+  };
+
   // ── EVENTOS (lista lateral, próximos 7 dias) ──
   // entries: [{ ev, local }]. Clicar direciona pro evento (sem popup).
   function setEventosSidebar(entries) {
@@ -354,17 +809,21 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     const section = $("eventos-section");
     section.style.display = lista.length ? "" : "none";
     wrap.innerHTML = "";
-    lista.forEach(({ ev, local }) => {
+    lista.forEach(({ ev, local, salaPath }) => {
       const item = document.createElement("button");
       item.className = "evento-item";
       const quando = ev._quando || "";
+      const janela = formatarJanela(ev);   // duração (ex.: 20:15–22:00)
+      // eventos de sala mostram onde (Prédio · Sala)
+      const onde = ev._sala && local ? `${local.nome} · ${ev._sala}` : "";
+      const sub = [quando, janela, onde].filter(Boolean).join(" · ");
       item.innerHTML =
         `<span class="evento-ico"><i class="fa fa-${(local && local.icone) || ev.icone || "star"}"></i></span>` +
         `<span class="evento-txt"><span class="evento-nome">${ev.nome}</span>` +
-        (quando ? `<span class="evento-quando">${quando}</span>` : "") + `</span>`;
+        (sub ? `<span class="evento-quando">${sub}</span>` : "") + `</span>`;
       item.onclick = () => {
         closePanel();
-        if (local) { cb.onSelectResult?.(local); openCard(local); }
+        if (local) { cb.onSelectResult?.(local); openCard(local, salaPath ? { salaPath } : {}); }
       };
       wrap.appendChild(item);
     });
@@ -419,12 +878,274 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   }
   renderFavoritos();
 
+  // ── CARDÁPIO SEMANAL (refeitório) ──
+  const DIAS_CARD = [["seg", "Segunda"], ["ter", "Terça"], ["qua", "Quarta"], ["qui", "Quinta"], ["sex", "Sexta"]];
+  const ddmm = (d) => `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
+  function parseData(ymd) {
+    const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(ymd || "");
+    return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+  }
+  const reVeg = /^\s*(op(ç|c)[aã]o\s+vegetariana|vegetariano)\s*:\s*/i;
+  function popularCardapio(card) {
+    const sec = $("card-cardapio-sec"), wrap = $("cardapio");
+    if (!card || !card.dias) { sec.style.display = "none"; return; }
+    sec.style.display = ""; wrap.innerHTML = "";
+
+    const ini = parseData(card.inicio), fim = parseData(card.fim);
+    const ag = agoraReal();
+    const hoje = new Date(ag); hoje.setHours(0, 0, 0, 0);
+    const nowMin = ag.getHours() * 60 + ag.getMinutes();
+    const naSemana = !!(ini && fim && hoje.getTime() >= ini.getTime() && hoje.getTime() <= fim.getTime());
+    const vencido = !!(fim && hoje.getTime() > fim.getTime());
+
+    const head = document.createElement("div"); head.className = "cardapio-head";
+    let htm = "";
+    if (vencido) htm += `<div class="cardapio-aviso"><i class="fa fa-exclamation-triangle"></i> Cardápio desatualizado — semana de ${ddmm(ini)} a ${ddmm(fim)} já passou.</div>`;
+    if (ini && fim) htm += `<div class="cardapio-semana"><i class="fa fa-calendar-o"></i> Semana de ${ddmm(ini)} a ${ddmm(fim)}</div>`;
+    if (card.refeicoes && card.refeicoes.length)
+      htm += `<div class="cardapio-refeicoes">${card.refeicoes.map(([n, h]) => {
+        const m = /(\d{1,2}):(\d{2}).*?(\d{1,2}):(\d{2})/.exec(h);
+        const aberto = naSemana && m && nowMin >= (+m[1]) * 60 + (+m[2]) && nowMin < (+m[3]) * 60 + (+m[4]);
+        return `<span class="${aberto ? "aberto" : ""}"><b>${n}</b> · ${h}${aberto ? ' <em>· aberto agora</em>' : ""}</span>`;
+      }).join("")}</div>`;
+    head.innerHTML = htm; if (htm) wrap.appendChild(head);
+
+    const hojeKey = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"][hoje.getDay()];
+    let openIdx = 0;   // padrão: segunda
+    if (ini && fim && hoje.getTime() >= ini.getTime() && hoje.getTime() <= fim.getTime()) {
+      const di = DIAS_CARD.findIndex(([k]) => k === hojeKey);
+      if (di >= 0) openIdx = di;
+    }
+
+    DIAS_CARD.forEach(([key, label], i) => {
+      const itens = card.dias[key] || [];
+      const data = ini ? new Date(ini) : null; if (data) data.setDate(ini.getDate() + i);
+      const ehHoje = !!(data && data.getTime() === hoje.getTime());
+      const row = document.createElement("div");
+      row.className = "day-acc" + (ehHoje ? " today" : "");
+      const hb = document.createElement("button"); hb.className = "day-head";
+      hb.innerHTML =
+        `<span class="day-label">${ehHoje ? "HOJE" : label}<span class="day-date">${data ? ddmm(data) : ""}</span></span>` +
+        `<span class="day-sum">${itens.length ? `${itens.length} itens` : "—"}</span>` +
+        `<span class="day-chevron"><i class="fa fa-chevron-down"></i></span>`;
+      const body = document.createElement("div"); body.className = "day-body";
+      if (!itens.length) body.innerHTML = '<div class="day-empty">Sem cardápio neste dia</div>';
+      else itens.forEach((it, idx) => {
+        const veg = reVeg.test(it);
+        const el = document.createElement("div");
+        el.className = "cardapio-item" + (idx === 0 && !veg ? " principal" : "") + (veg ? " veg" : "");
+        el.innerHTML = veg ? `<i class="fa fa-leaf"></i> ${it.replace(reVeg, "")}` : it;
+        body.appendChild(el);
+      });
+      hb.onclick = () => row.classList.toggle("open");
+      if (i === openIdx) row.classList.add("open");
+      row.appendChild(hb); row.appendChild(body);
+      wrap.appendChild(row);
+    });
+    if (card.obs) {
+      const obs = document.createElement("div"); obs.className = "cardapio-obs"; obs.textContent = card.obs;
+      wrap.appendChild(obs);
+    }
+  }
+
+  // ── NAVEGADOR DE ANDARES/SALAS (prédios e blocos) ──
+  // Um ponto é "container" quando tem `salas` (bloco, 1 nível) ou `andares`
+  // (prédio: andares → salas). Cada sala é um mini-ponto com tipo/desc/agenda/fotos.
+  const ICONES_SALA = {
+    "Sala": "users", "Laboratório": "flask", "Banheiro": "tint",
+    "Administração": "briefcase", "Auditório": "bullhorn", "Biblioteca": "book",
+    "Coordenação": "id-badge",
+  };
+  const COR_SALA = {
+    "Sala": "#428bca", "Laboratório": "#9B479F", "Banheiro": "#436978",
+    "Administração": "#d9534f", "Auditório": "#e6b422", "Biblioteca": "#2e7d32",
+    "Coordenação": "#a23336",
+  };
+  const DOW_KEY = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"];
+  function ehContainer(l) { return !!(l && (Array.isArray(l.andares) || Array.isArray(l.salas))); }
+  function salaTemHoje(sala) {
+    const itens = sala.agenda && sala.agenda[DOW_KEY[agoraReal().getDay()]];
+    return Array.isArray(itens) && itens.length > 0;
+  }
+  // Há programação semanal real? (algum dia com itens). Banheiros/instalações sem
+  // horário ficam vazios — não mostramos a grade só com "vago".
+  function temAgenda(ag) {
+    return !!ag && Object.keys(ag).some((k) => Array.isArray(ag[k]) && ag[k].length);
+  }
+  // Status de disponibilidade (interdição / obra). Vale p/ ponto OU sala.
+  function renderStatus(obj) {
+    const el = $("card-status");
+    const interdito = !!(obj && obj.disponivel === false);
+    card.classList.toggle("interdito", interdito);
+    if (!interdito) { el.style.display = "none"; el.innerHTML = ""; return; }
+    el.style.display = "";
+    const motivo = (obj.motivo || "").trim();
+    el.innerHTML = `<i class="fa fa-exclamation-triangle"></i> <span><b>Interditado</b>${motivo ? " · " + motivo : ""}</span>`;
+  }
+  // Partes DEPENDENTES DO TEMPO (cardápio + agenda + status) — re-renderizáveis ao vivo.
+  function renderTempoDe(obj) {
+    const ehRef = obj.tipo === "refeitorio";
+    // cardápio é EXCLUSIVO da classe "refeitorio" (como prédio/bloco têm a sua)
+    popularCardapio(ehRef ? obj.cardapio : null);
+    let ag = obj.agenda;
+    if (obj.evento) ag = { ...(obj.agenda || {}), ...(obj.evento.horarios || {}) };
+    // Agenda só quando há programação/evento. Refeitório não mostra (o cardápio já
+    // cumpre essa função); instalações sem horário (banheiros) também ficam sem grade.
+    const aSec = $("card-agenda-sec");
+    const temProg = !ehRef && (!!obj.evento || temAgenda(ag));
+    if (temProg) { aSec.style.display = ""; popularAgenda(ag, obj.evento); }
+    else { aSec.style.display = "none"; $("agenda").innerHTML = ""; }
+    renderStatus(obj);
+  }
+  // Conteúdo completo de um objeto (ponto OU sala): tempo + galeria.
+  function exibirConteudo(obj) {
+    renderTempoDe(obj);
+    popularGaleria(obj.fotos, obj.nome);
+  }
+  // Atualiza o card ABERTO em tempo real (chrome + cardápio + agenda), sem mexer
+  // na galeria (evitar re-fetch e resetar a foto que o usuário está vendo).
+  function atualizarCardAoVivo() {
+    if (!currentLocal || !card.classList.contains("open")) return;
+    const local = currentLocal;
+    const ehEvento = ehContainer(local)
+      ? eventoAtivoNoContainer(local)
+      : !!(local.evento && eventoAtivoAgora(local.evento));
+    $("card-icon").style.background = ehEvento
+      ? "linear-gradient(150deg, #ffe27a, #ffc107 45%, #d4a017)"
+      : (local.cor_hex || COR_HEX[local.cor] || "#5cb85c");
+    card.classList.toggle("event", ehEvento);
+    $("card-evento-badge").style.display = ehEvento ? "" : "none";
+    if (ehContainer(local)) cnRender(true);   // preserva cnPath; re-avalia tudo
+    else renderTempoDe(local);
+  }
+
+  let cnLocal = null, cnPath = [];
+  function abrirNavegador(local, alvoPath) {
+    cnLocal = local; cnPath = Array.isArray(alvoPath) ? alvoPath.slice() : [];
+    $("card-niveis").style.display = "";
+    cnRender();
+  }
+  function cnNode() {
+    const l = cnLocal;
+    if (l.andares) {
+      if (cnPath.length === 0) return { nivel: "andares", itens: l.andares };
+      const andar = l.andares[cnPath[0]] || {};
+      if (cnPath.length === 1) return { nivel: "salas", itens: andar.salas || [] };
+      return { nivel: "sala", sala: (andar.salas || [])[cnPath[1]] || {} };
+    }
+    if (cnPath.length === 0) return { nivel: "salas", itens: l.salas || [] };
+    return { nivel: "sala", sala: (l.salas || [])[cnPath[0]] || {} };
+  }
+  // Reposiciona a galeria: logo APÓS o navegador de andares/salas (fachada do
+  // prédio/bloco, abaixo da seleção) ou no fim (galeria normal de sala/ponto).
+  // No-op se já está na posição.
+  function galeriaNoTopo(aposNiveis) {
+    const exp = $("card-expanded"), g = $("card-galeria-sec"), niveis = $("card-niveis");
+    if (aposNiveis) { if (niveis.nextElementSibling !== g) exp.insertBefore(g, niveis.nextSibling); }
+    else { if (exp.lastChild !== g) exp.appendChild(g); }
+  }
+  function cnRender(semGaleria) {
+    const node = cnNode();
+    cnRenderCrumb();
+    const lista = $("cn-lista"), label = $("cn-label");
+    const aSec = $("card-agenda-sec"), gSec = $("card-galeria-sec"), cSec = $("card-cardapio-sec");
+    if (node.nivel === "sala") {
+      lista.style.display = "none"; lista.innerHTML = ""; label.style.display = "none";
+      galeriaNoTopo(false);   // galeria da sala fica no lugar normal (fim)
+      aSec.style.display = ""; gSec.style.display = "";
+      if (semGaleria) renderTempoDe(node.sala); else exibirConteudo(node.sala);
+    } else {
+      lista.style.display = ""; label.style.display = "";
+      label.textContent = node.nivel === "andares" ? "ANDARES" : "SALAS";
+      aSec.style.display = "none"; cSec.style.display = "none";
+      renderStatus(cnLocal);   // interdição do prédio/bloco inteiro (se houver)
+      // Galeria da FACHADA do prédio/bloco — só no nível principal do navegador.
+      const noTopo = cnPath.length === 0;
+      const temFotos = noTopo && Array.isArray(cnLocal.fotos) && cnLocal.fotos.length > 0;
+      galeriaNoTopo(temFotos);   // fachada do prédio/bloco vai pro TOPO do card
+      gSec.style.display = temFotos ? "" : "none";
+      if (temFotos && !semGaleria) popularGaleria(cnLocal.fotos, cnLocal.nome);
+      cnRenderLista(node);
+    }
+  }
+  function cnItemRow({ ico, badge, cor, nome, sub, evento, interd }) {
+    const row = document.createElement("button");
+    row.className = "cn-item" + (evento ? " evento" : "") + (interd ? " interdito" : "");
+    // evento ativo → ícone dourado (sobrepõe a cor do tipo)
+    const bg = evento ? "linear-gradient(150deg,#ffe27a,#ffc107 45%,#d4a017)" : (cor || "var(--panel-tit)");
+    const ic = badge != null
+      ? `<span class="cn-ico badge"${evento ? ` style="background:${bg}"` : ""}>${badge}</span>`
+      : `<span class="cn-ico" style="background:${bg}"><i class="fa fa-${ico}"></i></span>`;
+    row.innerHTML = ic +
+      `<span class="cn-txt"><span class="cn-nome">${nome}${evento ? ' <i class="fa fa-star cn-star"></i>' : ""}</span>` +
+      (sub ? `<span class="cn-sub">${sub}</span>` : "") + "</span>" +
+      `<span class="cn-chevron"><i class="fa fa-chevron-right"></i></span>`;
+    return row;
+  }
+  function cnRenderLista(node) {
+    const lista = $("cn-lista"); lista.innerHTML = "";
+    if (node.nivel === "andares") {
+      node.itens.forEach((andar, i) => {
+        const n = (andar.salas || []).length;
+        // andar fica dourado se contém alguma sala com evento ativo agora
+        const ev = (andar.salas || []).some((s) => s.evento && eventoAtivoAgora(s.evento));
+        const row = cnItemRow({
+          badge: i === 0 ? "T" : `${i}º`, nome: andar.nome,
+          sub: ev ? "evento acontecendo agora" : `${n} ${n === 1 ? "espaço" : "espaços"}`, evento: ev,
+        });
+        row.onclick = () => { cnPath = [i]; cnRender(); };
+        lista.appendChild(row);
+      });
+    } else {
+      node.itens.forEach((sala, i) => {
+        const tp = sala.tipo || "Sala";
+        const interd = sala.disponivel === false;
+        const ev = !interd && !!(sala.evento && eventoAtivoAgora(sala.evento));
+        const motivo = (sala.motivo || "").trim();
+        let sub;
+        if (interd) sub = motivo ? `${tp} · interditado · ${motivo}` : `${tp} · interditado`;
+        else if (ev) sub = `${tp} · evento agora`;
+        else sub = tp + (salaTemHoje(sala) ? " · programação hoje" : "");
+        const row = cnItemRow({ ico: ICONES_SALA[tp] || "map-pin", cor: COR_SALA[tp], nome: sala.nome, sub, evento: ev, interd });
+        row.onclick = () => { cnPath = [...cnPath, i]; cnRender(); };
+        lista.appendChild(row);
+      });
+    }
+  }
+  function cnRenderCrumb() {
+    const crumb = $("cn-crumb"); crumb.innerHTML = "";
+    const l = cnLocal;
+    const segs = [{ label: l.nome, path: [] }];
+    if (l.andares) {
+      if (cnPath.length >= 1) segs.push({ label: (l.andares[cnPath[0]] || {}).nome, path: [cnPath[0]] });
+      if (cnPath.length >= 2) segs.push({ label: ((l.andares[cnPath[0]] || {}).salas || [])[cnPath[1]].nome, path: cnPath.slice() });
+    } else if (cnPath.length >= 1) {
+      segs.push({ label: (l.salas || [])[cnPath[0]].nome, path: cnPath.slice() });
+    }
+    segs.forEach((s, i) => {
+      if (i > 0) {
+        const sep = document.createElement("span");
+        sep.className = "cn-sep"; sep.innerHTML = "<i class='fa fa-angle-right'></i>";
+        crumb.appendChild(sep);
+      }
+      const last = i === segs.length - 1;
+      const el = document.createElement(last ? "span" : "button");
+      el.className = "cn-seg" + (last ? " atual" : "");
+      el.textContent = s.label;
+      if (!last) el.onclick = () => { cnPath = s.path; cnRender(); };
+      crumb.appendChild(el);
+    });
+  }
+
   // ── BOTTOM CARD ──
-  function openCard(local) {
+  function openCard(local, opts = {}) {
+    somPonto();   // toque sutil ao abrir um ponto de interesse
     currentLocal = local;
     // Estilização de evento (interna E externa) só durante o PERÍODO ATIVO: selo,
-    // ícone dourado e acentos aparecem apenas quando o evento está acontecendo agora.
-    const ehEvento = !!(local.evento && eventoAtivoAgora(local.evento));
+    // ícone dourado e acentos. Em prédios/blocos, vale se ALGUMA sala tem evento ativo.
+    const ehEvento = ehContainer(local)
+      ? eventoAtivoNoContainer(local)
+      : !!(local.evento && eventoAtivoAgora(local.evento));
     const iconEl = $("card-icon");
     // Evento: fundo do ícone dourado (igual ao marcador/popup); senão cor da categoria.
     iconEl.style.background = ehEvento
@@ -434,7 +1155,8 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     card.classList.toggle("event", ehEvento);   // acentos dourados via CSS
     $("card-evento-badge").style.display = ehEvento ? "" : "none";
     $("card-title").textContent = local.nome || "";
-    $("card-cat").textContent = local.cat || "";
+    const tipoLabel = local.andares ? "Prédio" : (local.salas ? "Bloco" : (local.tipo === "refeitorio" ? "Refeitório" : ""));
+    $("card-cat").textContent = (local.cat || "") + (tipoLabel ? ` · ${tipoLabel}` : "");
     $("card-desc").textContent = local.desc || "";
 
     // distância se houver posição
@@ -450,17 +1172,21 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     }
 
     refreshFavIcon();
-    // Agenda: mescla os horários do evento e deixa a popularAgenda decidir, por
-    // DATA, em quais dias o evento ocorre (limitado por inicio/fim) e quando pintar
-    // de dourado (só no período ativo).
-    let agenda = local.agenda;
-    if (local.evento) {
-      agenda = { ...(local.agenda || {}), ...(local.evento.horarios || {}) };
+    $("card-edit").style.display = ehAdmin() ? "" : "none";
+    // Prédios/blocos: navegador de andares/salas (opcionalmente já numa sala alvo).
+    // Pontos normais: agenda+galeria direto.
+    if (ehContainer(local)) {
+      abrirNavegador(local, opts.salaPath);
+    } else {
+      galeriaNoTopo(false);   // ponto simples: galeria no fim (após agenda)
+      $("card-niveis").style.display = "none";
+      $("card-agenda-sec").style.display = "";
+      $("card-galeria-sec").style.display = "";
+      exibirConteudo(local);
     }
-    popularAgenda(agenda, local.evento);
-    popularGaleria(local.fotos, local.nome);
     selecionarMarcador(local.nome);
-    card.classList.remove("expanded");   // sempre abre compacto
+    // Abre numa sala-alvo (busca/sidebar) → já expandido; senão compacto.
+    card.classList.toggle("expanded", !!opts.salaPath);
     card.classList.add("open");
   }
 
@@ -472,6 +1198,14 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
 
   $("card-close").onclick = closeCard;
   $("card-nav").onclick = () => { if (currentLocal) cb.onNav?.(currentLocal); };
+  // Editar (admin): abre o editor certo pré-preenchido.
+  $("card-edit").onclick = () => {
+    if (!currentLocal) return;
+    const l = currentLocal;
+    closeCard();
+    if (ehContainer(l)) abrirEditorPredio(l);
+    else abrirEditorPonto(l);
+  };
 
   // ── EXPANDIR/COLAPSAR (swipe) ──
   function setExpanded(v) { card.classList.toggle("expanded", v); }
@@ -608,9 +1342,10 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
       const head = document.createElement("button");
       head.className = "day-head";
       const n = lista.length;
+      const dur = evento ? formatarJanela(evento) : "";
       let resumo;
-      if (gold) resumo = "Acontecendo agora";
-      else if (ocorre && janela) resumo = "Evento";
+      if (gold) resumo = dur ? `Agora · ${dur}` : "Acontecendo agora";
+      else if (ocorre && janela) resumo = dur || "Evento";
       else if (n) resumo = `${n} ${n > 1 ? "atividades" : "atividade"}`;
       else resumo = "Sem programação";
       head.innerHTML =
@@ -779,23 +1514,44 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   };
 
   // ── SEARCH ──
+  // Índice de busca: pontos de topo + salas (com caminho Prédio › Andar › Sala).
+  function indiceBusca() {
+    const out = [];
+    for (const l of locais) {
+      if (l._temp) continue;
+      out.push({ nome: l.nome, sub: l.cat || "", ico: l.icone || "map-marker", cor: l.cor_hex || COR_HEX[l.cor] || "#5cb85c", local: l, path: null });
+      if (l.andares) {
+        l.andares.forEach((a, ai) => (a.salas || []).forEach((s, si) => {
+          out.push({ nome: s.nome, sub: `${l.nome} › ${a.nome}`, cor: COR_SALA[s.tipo] || "#5cb85c", ico: ICONES_SALA[s.tipo], local: l, path: [ai, si] });
+        }));
+      } else if (l.salas) {
+        l.salas.forEach((s, si) => out.push({ nome: s.nome, sub: l.nome, cor: COR_SALA[s.tipo] || "#5cb85c", ico: ICONES_SALA[s.tipo], local: l, path: [si] }));
+      }
+    }
+    return out;
+  }
+  function abrirResultado(r) {
+    results.classList.remove("open"); searchInput.value = "";
+    cb.onSelectResult?.(r.local);              // voa até o ponto/prédio
+    openCard(r.local, r.path ? { salaPath: r.path } : {});
+  }
   function renderResults(q) {
     const term = q.trim().toLowerCase();
     if (!term) { results.classList.remove("open"); results.innerHTML = ""; return; }
-    const matches = locais.filter((l) => l.nome.toLowerCase().includes(term)).slice(0, 8);
-    if (!matches.length) { results.classList.remove("open"); results.innerHTML = ""; return; }
+    const matches = indiceBusca()
+      .filter((r) => r.nome.toLowerCase().includes(term) || r.sub.toLowerCase().includes(term))
+      .slice(0, 10);
     results.innerHTML = "";
-    matches.forEach((l) => {
+    if (!matches.length) {
+      results.innerHTML = '<div class="result-vazio">Nenhum resultado</div>';
+      results.classList.add("open"); return;
+    }
+    matches.forEach((r) => {
       const item = document.createElement("button");
       item.className = "result-item";
-      const hex = l.cor_hex || COR_HEX[l.cor] || "#5cb85c";
-      item.innerHTML = `<span class="dot" style="background:${hex}"></span>${l.nome}`;
-      item.onclick = () => {
-        results.classList.remove("open");
-        searchInput.value = "";
-        cb.onSelectResult?.(l);
-        openCard(l);
-      };
+      const icone = `<span class="result-ico" style="background:${r.cor}"><i class="fa fa-${r.ico || "map-marker"}"></i></span>`;
+      item.innerHTML = `${icone}<span class="result-txt"><span class="result-nome">${r.nome}</span>${r.sub ? `<span class="result-sub">${r.sub}</span>` : ""}</span>`;
+      item.onclick = () => abrirResultado(r);
       results.appendChild(item);
     });
     results.classList.add("open");
@@ -803,8 +1559,9 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   searchInput.addEventListener("input", (e) => renderResults(e.target.value));
   $("search-btn").onclick = () => {
     const term = searchInput.value.trim().toLowerCase();
-    const m = locais.find((l) => l.nome.toLowerCase().includes(term));
-    if (m) { results.classList.remove("open"); searchInput.value = ""; cb.onSelectResult?.(m); openCard(m); }
+    if (!term) return;
+    const m = indiceBusca().find((r) => r.nome.toLowerCase().includes(term));
+    if (m) abrirResultado(m);
   };
   document.addEventListener("click", (e) => {
     if (!results.contains(e.target) && e.target !== searchInput && !$("search-btn").contains(e.target)) {
@@ -896,10 +1653,38 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     epTimer = setTimeout(esconderEventos, 5000);
   }
 
+  // ── ACESSIBILIDADE & POLISH ──
+  // Esc fecha o que estiver aberto (modais admin → login → foto → popup → busca).
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const adm = document.querySelector(".adm-modal.open");
+    if (adm) return void adm.classList.remove("open");
+    if ($("login-modal").classList.contains("open")) return void $("login-modal").classList.remove("open");
+    if ($("photo-viewer").classList.contains("open")) return void $("photo-viewer").classList.remove("open");
+    if ($("event-popup").classList.contains("show")) return void esconderEventos();
+    if ($("results-panel").classList.contains("open")) return void $("results-panel").classList.remove("open");
+  });
+  // aria-label a partir do title nos botões só-ícone (sem rótulo de texto).
+  document.querySelectorAll("button[title]:not([aria-label])").forEach((b) => b.setAttribute("aria-label", b.getAttribute("title")));
+  $("search-input").setAttribute("aria-label", "Buscar local no campus");
+
+  // Instalar PWA: mostra o botão quando o navegador permite instalar.
+  let deferredInstall = null;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault(); deferredInstall = e; $("install-section").style.display = "";
+  });
+  $("pwa-install").onclick = async () => {
+    if (!deferredInstall) return;
+    deferredInstall.prompt();
+    await deferredInstall.userChoice.catch(() => {});
+    deferredInstall = null; $("install-section").style.display = "none";
+  };
+  window.addEventListener("appinstalled", () => { $("install-section").style.display = "none"; });
+
   // API pública (main.js usa)
   return {
     openCard, closeCard, closePanel,
     showRouteBanner, hideRouteBanner,
-    showToast, mostrarEventos, setEventosSidebar,
+    showToast, mostrarEventos, setEventosSidebar, atualizarCardAoVivo,
   };
 }

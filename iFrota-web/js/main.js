@@ -8,8 +8,10 @@ import { initUI } from "./ui.js";
 import { store } from "./store.js";
 import { initLocation, iniciarGPS, setManualMode, setPosicao } from "./location.js";
 import { initRouting, calcularRota, limparRota, reAddRouteLayers, atualizarTracking } from "./routing.js";
-import { eventosAtivosAgora, eventosProximos7Dias, proximaOcorrencia, indexarPorLocal, eventoParaLocal, setRelogioOverride, agoraReal, sincronizarHoraWeb } from "./eventos.js";
-import { mesclarLocais, mesclarEventos } from "./admin-store.js";
+import { eventosAtivosAgora, eventosProximosDias, proximaOcorrencia, proximaOcorrenciaData, indexarPorLocal, eventoParaLocal, setRelogioOverride, agoraReal, sincronizarHoraWeb, eventoAtivoNoContainer, salasDoContainer, eventoAtivoAgora } from "./eventos.js";
+import { pontoEmPoligono } from "./geo.js";
+import { somRota, somNotificacao } from "./sons.js";
+import { mesclarLocais, mesclarEventos, mesclarCardapios } from "./admin-store.js";
 // Backend de fotos é LOCAL (js/fotos-store.js, usado pela ui.js). Firebase está
 // dormente — ver docs/IMPLEMENTACAO-FUTURA-FIREBASE.md.
 
@@ -53,17 +55,20 @@ async function bootstrap() {
 
     locais.length = 0;
     merged.forEach((l) => locais.push({ ...l, isEvento: false, evento: undefined }));
+    mesclarCardapios(locais);   // sobrepõe cardápios atualizados pelo admin
 
     // isEvento (estrela dourada) segue a JANELA DE HORÁRIO: o waypoint só se
     // "transforma" enquanto o evento está ativo AGORA. Fora da janela mantém o
     // ícone padrão, mas guarda `evento` p/ a agenda aparecer no card.
     const eventosAgora = eventosAtivosAgora(eventos);
-    const eventos7d = eventosProximos7Dias(eventos);
+    const eventos7d = eventosProximosDias(eventos);   // horizonte 31d (pega mensais)
     const agoraSet = new Set(eventosAgora);
     const evPorLocal = indexarPorLocal(eventos7d);
     for (const l of locais) {
       const ev = evPorLocal.get(l.nome);
       if (ev) { l.evento = ev; if (agoraSet.has(ev)) l.isEvento = true; }
+      // Prédio/bloco: marcador dourado se alguma sala/andar tem evento ativo agora.
+      if ((l.andares || l.salas) && eventoAtivoNoContainer(l)) l.isEvento = true;
     }
     // Pontos temporários (sem waypoint fixo) só existem no mapa durante a janela.
     eventosAgora.filter((ev) => !ev.local).forEach((ev) => {
@@ -78,6 +83,27 @@ async function bootstrap() {
       return local ? { ev, local } : null;
     }).filter(Boolean);
 
+    // Eventos de SALA (prédios/blocos) também na sidebar, com o caminho da sala.
+    for (const l of locais) {
+      const grupos = l.andares
+        ? l.andares.map((a, ai) => [ai, a.salas || []])
+        : (l.salas ? [[null, l.salas]] : []);
+      for (const [ai, salas] of grupos) {
+        salas.forEach((s, si) => {
+          if (s.evento && eventosProximosDias([s.evento]).length) {
+            s.evento._quando = proximaOcorrencia(s.evento);
+            s.evento._sala = s.nome;
+            eventosSidebar.push({ ev: s.evento, local: l, salaPath: ai != null ? [ai, si] : [si] });
+          }
+        });
+      }
+    }
+    // ordena a sidebar pela data da próxima ocorrência (mais próxima primeiro)
+    eventosSidebar.sort((a, b) => {
+      const da = proximaOcorrenciaData(a.ev), db = proximaOcorrenciaData(b.ev);
+      return (da ? da.getTime() : Infinity) - (db ? db.getTime() : Infinity);
+    });
+
     return { eventosSidebar, eventos7d };
   }
   let dados = montarDados();
@@ -88,6 +114,11 @@ async function bootstrap() {
   // Destino da navegação ativa (null quando não há rota). Usado pelo tracking
   // pra atualizar ETA ao vivo e recalcular no off-route.
   let navLocal = null;
+
+  // A localização do usuário só "vale" dentro da área delimitada do campus.
+  // Fora dela NÃO movemos a câmera (evita zoom no canto/fora da zona) nem criamos
+  // rota — os destinos são sempre pontos do campus.
+  function noCampus(lat, lon) { return pontoEmPoligono(lat, lon, campusPoly); }
 
   // Re-aplica camadas de estilo (máscara + prédios) — usado no load e na troca de tema.
   function aplicarCamadas(isDark) {
@@ -103,26 +134,39 @@ async function bootstrap() {
       onNav: (local) => {
         const pos = store.getLastPos();
         if (!pos) { ui.showToast("Defina sua posição primeiro"); return; }
+        if (!noCampus(pos[0], pos[1])) {
+          ui.showToast("Sua localização está fora do campus — rota indisponível");
+          return;
+        }
         ui.closeCard();
         // Pathfinding A* sobre a rede viária — desenha rota real (sólido) vs
         // atalhos virtuais (tracejado laranja) e anima até o destino.
         navLocal = local;
         const r = calcularRota(pos[0], pos[1], local);
         ui.showRouteBanner(local, r.dist, r.eta);
+        somRota();   // som sutil ao criar a rota
       },
       onSelectResult: (local) => {
         map.flyTo({ center: [local.coords[1], local.coords[0]], zoom: 18, duration: 1000 });
       },
       onLocate: () => {
         const pos = store.getLastPos();
-        if (pos) map.flyTo({ center: [pos[1], pos[0]], zoom: 18, duration: 1000 });
+        // Só centraliza no último ponto se ele estiver DENTRO do campus.
+        if (pos && noCampus(pos[0], pos[1])) {
+          map.flyTo({ center: [pos[1], pos[0]], zoom: 18, duration: 1000 });
+        }
         // Pede GPS em paralelo — atualiza o marcador quando chegar a leitura
         iniciarGPS({
           onError: () => {
             if (!pos) ui.showToast("GPS indisponível — use 'Definir Posição'");
           },
         }).then(([lat, lon]) => {
-          map.flyTo({ center: [lon, lat], zoom: 18, duration: 1000 });
+          // Fora do campus: mantém a câmera no campus (não dá zoom no canto/longe).
+          if (noCampus(lat, lon)) {
+            map.flyTo({ center: [lon, lat], zoom: 18, duration: 1000 });
+          } else {
+            ui.showToast("Você está fora do campus");
+          }
         }).catch(() => {});
       },
       onSetPos: () => {
@@ -180,6 +224,12 @@ async function bootstrap() {
     map.getCanvas().style.cursor = "";
     cb2([e.lngLat.lat, e.lngLat.lng]);
   });
+  // Helper de debug: simula o "escolher local no mapa" sem clicar no canvas.
+  window._ifrotaPick = (lat, lon) => {
+    if (!pickCb) return false;
+    const c = pickCb; pickCb = null; map.getCanvas().style.cursor = "";
+    c([lat, lon]); return true;
+  };
 
   window._ifrotaUI = ui;       // debug/testes
   window._ifrotaLocais = locais;
@@ -199,22 +249,39 @@ async function bootstrap() {
   window._ifrotaRefresh = () => refresh();
 
   // ── Relógio do sistema ────────────────────────────────────────────────────────
-  // A cada 20s re-avalia quais eventos estão ATIVOS AGORA. Quando o conjunto muda
-  // (passou da hora de início ou de término), refaz os marcadores → o ícone de
-  // evento aparece/some sozinho. Não interrompe uma navegação em andamento.
-  function chaveAtivosAgora() {
-    return eventosAtivosAgora(mesclarEventos(baseEventos))
-      .map((e) => e.nome).sort().join("|");
+  // A cada 10s re-avalia os eventos ATIVOS AGORA (topo + salas). Quando o conjunto
+  // muda, refaz marcadores/sidebar; avisa (toast) só quando um evento COMEÇA (sem
+  // aviso de término, p/ não encher de notificação); e atualiza o card aberto ao vivo.
+  function ativosAgoraMap() {
+    const m = new Map();   // key → rótulo de exibição
+    for (const ev of eventosAtivosAgora(mesclarEventos(baseEventos))) m.set("top:" + ev.nome, ev.nome);
+    for (const l of locais) {
+      if (l.andares || l.salas) {
+        for (const s of salasDoContainer(l)) {
+          if (s.evento && eventoAtivoAgora(s.evento)) m.set(`sala:${l.nome}>${s.nome}`, `${s.evento.nome} · ${s.nome}`);
+        }
+      }
+    }
+    return m;
   }
-  let _ultimaChaveEventos = chaveAtivosAgora();
-  setInterval(() => {
-    if (navLocal) return;              // não mexe nos marcadores durante a rota
-    const k = chaveAtivosAgora();
-    if (k === _ultimaChaveEventos) return;
-    _ultimaChaveEventos = k;
-    refresh();
-    console.log(`[IFrota] ${agoraReal().toLocaleTimeString("pt-BR")} — eventos ativos mudaram, marcadores atualizados`);
-  }, 10000);
+  let _ativos = new Set(ativosAgoraMap().keys());
+  function tickRelogio() {
+    const mapa = ativosAgoraMap();
+    const keys = [...mapa.keys()];
+    const novos = keys.filter((k) => !_ativos.has(k));
+    const mudou = keys.length !== _ativos.size || novos.length > 0;
+    // avisa só o INÍCIO (eventos que passaram a acontecer agora)
+    if (novos.length === 1) ui.showToast(`▶ ${mapa.get(novos[0])} — acontecendo agora`);
+    else if (novos.length > 1) ui.showToast(`▶ ${novos.length} eventos acontecendo agora`);
+    if (novos.length) somNotificacao();   // "ding" gentil só quando um evento começa
+    _ativos = new Set(keys);
+    if (mudou && !navLocal) {
+      refresh();
+      console.log(`[IFrota] ${agoraReal().toLocaleTimeString("pt-BR")} — eventos ativos mudaram`);
+    }
+    ui.atualizarCardAoVivo?.();   // card aberto em tempo real (sem mexer na galeria)
+  }
+  setInterval(tickRelogio, 10000);
 
   // Aplica a hora da web: como o "agora" pode dar um salto grande, reavalia os
   // eventos imediatamente após sincronizar.
@@ -222,7 +289,8 @@ async function bootstrap() {
     if (off == null) return;   // offline: seguimos com o último offset conhecido
     console.log(`[IFrota] hora da web sincronizada — offset ${(off / 1000).toFixed(0)}s · agora=${agoraReal().toLocaleString("pt-BR")}`);
     if (!navLocal) refresh();
-    _ultimaChaveEventos = chaveAtivosAgora();
+    _ativos = new Set(ativosAgoraMap().keys());
+    ui.atualizarCardAoVivo?.();
   }
   horaSync.then(aplicarSyncHora).catch(() => {});
   setInterval(() => { sincronizarHoraWeb().then(aplicarSyncHora).catch(() => {}); }, 5 * 60 * 1000);
@@ -231,11 +299,18 @@ async function bootstrap() {
     aplicarCamadas(dark);
     adicionarMarcadores(map, locais, { onClick: (local) => ui.openCard(local) });
     initLocation(map, {
+      noCampus,   // só aceita posição manual dentro da área delimitada
+      onForaCampus: () => ui.showToast("Esse ponto está fora do campus — escolha um local dentro da área"),
       onUpdate: (latlon) => {
         if (!navLocal) return;   // só rastreia durante uma rota ativa
         const t = atualizarTracking(latlon[0], latlon[1]);
         if (!t) return;
         if (t.reroute) {
+          // Saiu da área do campus → não recalcula (origem precisa estar no campus).
+          if (!noCampus(latlon[0], latlon[1])) {
+            ui.showToast("Você saiu da área do campus");
+            return;
+          }
           // Usuário saiu da rota por leituras consecutivas → recalcula (sem reanimar).
           ui.showToast("⟳ Recalculando rota...");
           const r = calcularRota(latlon[0], latlon[1], navLocal, { animate: false });

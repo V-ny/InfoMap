@@ -84,16 +84,40 @@ export function hojeKey() {
   return DOW[agoraReal().getDay()];
 }
 
-// ── Atividade por DIA (dia da semana + período de datas) ────────────────────────
-// Evento ocorre HOJE? (ignora a hora — usado pela lista lateral dos 7 dias)
-export function eventoAtivoHoje(ev, hoje = agoraReal()) {
-  const k = DOW[hoje.getDay()];
-  if (!ev.dias || !ev.dias.includes(k)) return false;
-  // Data LOCAL (não toISOString, que é UTC e viraria o dia à noite no Brasil).
-  const ymd = `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, "0")}-${String(hoje.getDate()).padStart(2, "0")}`;
+// ── Recorrência (por DATA) ──────────────────────────────────────────────────────
+// Modos: "semanal" (dias[]), "unica" (data "YYYY-MM-DD"), "mensal" por dia-do-mês
+// (diaMes 1..31) OU pela Nª ocorrência do dia da semana no mês (semanaMes 1..5|"ultima").
+// Sempre limitado pelo período inicio/fim (datas). Ignora a hora.
+function ymdLocal(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function diasNoMes(d) { return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate(); }
+
+export function ocorreNaData(ev, d = agoraReal()) {
+  if (!ev) return false;
+  const ymd = ymdLocal(d);
   if (ev.inicio && ymd < ev.inicio) return false;
   if (ev.fim && ymd > ev.fim) return false;
-  return true;
+  const rep = ev.repete || (ev.data ? "unica" : "semanal");
+  if (rep === "unica") return ev.data === ymd;
+  if (rep === "mensal") {
+    if (ev.diaMes) return d.getDate() === +ev.diaMes;
+    if (ev.semanaMes && ev.dias && ev.dias.includes(DOW[d.getDay()])) {
+      if (ev.semanaMes === "ultima") return d.getDate() + 7 > diasNoMes(d);
+      return Math.floor((d.getDate() - 1) / 7) + 1 === +ev.semanaMes;
+    }
+    return false;
+  }
+  return !!(ev.dias && ev.dias.includes(DOW[d.getDay()]));   // semanal
+}
+
+// Compat: "ocorre hoje" (nível de DIA) — usado pela agenda/grade semanal.
+export function eventoAtivoHoje(ev, hoje = agoraReal()) { return ocorreNaData(ev, hoje); }
+
+// "20:15–22:00" (duração), "a partir de 20:15" (só início) ou "" (dia todo).
+export function formatarJanela(ev) {
+  if (!ev || !ev.horaInicio) return "";
+  return ev.horaFim ? `${ev.horaInicio}–${ev.horaFim}` : `a partir de ${ev.horaInicio}`;
 }
 
 export function eventosAtivosHoje(eventos) {
@@ -132,34 +156,54 @@ export function eventosAtivosAgora(eventos, agora = agoraReal()) {
   return (eventos || []).filter((ev) => eventoAtivoAgora(ev, agora));
 }
 
-// ── Próximos 7 dias (lista lateral) ─────────────────────────────────────────────
-// Eventos com ao menos uma ocorrência nos próximos 7 dias (incluindo hoje).
-export function eventosProximos7Dias(eventos) {
-  const hoje = agoraReal();
-  return (eventos || []).filter((ev) => {
-    for (let i = 0; i < 7; i++) {
-      const d = new Date(hoje);
-      d.setDate(hoje.getDate() + i);
-      if (eventoAtivoHoje(ev, d)) return true;
-    }
-    return false;
-  });
+// ── Eventos em containers (prédios/blocos) ──────────────────────────────────────
+// Salas de um container: bloco → `salas`; prédio → salas de todos os `andares`.
+export function salasDoContainer(local) {
+  if (!local) return [];
+  if (Array.isArray(local.andares)) return local.andares.flatMap((a) => a.salas || []);
+  if (Array.isArray(local.salas)) return local.salas;
+  return [];
+}
+// Alguma sala do container tem evento ATIVO AGORA? (propaga a cor pro marcador-pai)
+export function eventoAtivoNoContainer(local, agora = agoraReal()) {
+  return salasDoContainer(local).some((s) => s.evento && eventoAtivoAgora(s.evento, agora));
 }
 
-// Rótulo da próxima ocorrência do evento (Hoje / Amanhã / nome do dia).
-export function proximaOcorrencia(ev) {
-  const hoje = agoraReal();
-  const nomes = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(hoje);
-    d.setDate(hoje.getDate() + i);
-    if (eventoAtivoHoje(ev, d)) {
-      if (i === 0) return "Hoje";
-      if (i === 1) return "Amanhã";
-      return nomes[d.getDay()];
+// ── Próximas ocorrências (horizonte configurável; ciente da janela) ─────────────
+// Data da próxima ocorrência a partir de agora (null se nenhuma no horizonte). Se
+// HOJE a janela já terminou, pula pra próxima — não conta um evento já encerrado.
+export function proximaOcorrenciaData(ev, horizonte = 60) {
+  const base = agoraReal();
+  const baseDia = new Date(base); baseDia.setHours(0, 0, 0, 0);
+  for (let i = 0; i <= horizonte; i++) {
+    const d = new Date(baseDia); d.setDate(baseDia.getDate() + i);
+    if (!ocorreNaData(ev, d)) continue;
+    if (i === 0) {
+      const j = janelaDoEvento(ev, base);
+      if (j && minutosAgora(base) >= j[1]) continue;   // já encerrou hoje
     }
+    return d;
   }
-  return "";
+  return null;
+}
+
+// Eventos com ao menos uma ocorrência futura dentro do horizonte (dias). Substitui
+// o antigo "próximos 7 dias" — pega também mensais/futuros.
+export function eventosProximosDias(eventos, horizonte = 31) {
+  return (eventos || []).filter((ev) => proximaOcorrenciaData(ev, horizonte) != null);
+}
+
+const NOMES_DIA = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+// Rótulo: Hoje / Amanhã / dia da semana (<7d) / "Seg 06/07" (além disso).
+export function proximaOcorrencia(ev) {
+  const d = proximaOcorrenciaData(ev);
+  if (!d) return "";
+  const base = agoraReal(); base.setHours(0, 0, 0, 0);
+  const diff = Math.round((d.getTime() - base.getTime()) / 86400000);
+  if (diff <= 0) return "Hoje";
+  if (diff === 1) return "Amanhã";
+  if (diff < 7) return NOMES_DIA[d.getDay()];
+  return `${NOMES_DIA[d.getDay()].slice(0, 3)} ${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`;
 }
 
 // Conjunto de chaves de dia em que o evento ocorre (pra pintar a agenda de dourado).

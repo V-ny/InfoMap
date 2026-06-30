@@ -3,7 +3,7 @@
 //   - app shell + dados locais → cache-first (precache no install)
 //   - libs CDN (maplibre, fontawesome) → stale-while-revalidate
 //   - tiles/glyphs do mapa → cache-first com cache em runtime (cap simples)
-const VERSION = "ifrota-v18";
+const VERSION = "ifrota-v40";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const TILE_CACHE = `${VERSION}-tiles`;
@@ -26,6 +26,7 @@ const SHELL_ASSETS = [
   "./js/location.js",
   "./js/routing.js",
   "./js/eventos.js",
+  "./js/sons.js",
   "./js/fotos-store.js",
   "./js/admin-store.js",
   "./js/ui.js",

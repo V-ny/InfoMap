@@ -1,0 +1,244 @@
+[
+    {
+        "nome": "Portaria 1 (Principal)",
+        "coords": [
+            -22.518476,
+            -43.995129
+        ],
+        "cor": "green",
+        "icone": "road",
+        "cat": "Acessos",
+        "desc": "Entrada principal do campus."
+    },
+    {
+        "nome": "Portaria 2",
+        "coords": [
+            -22.520139,
+            -43.994636
+        ],
+        "cor": "lightgreen",
+        "icone": "road",
+        "cat": "Acessos",
+        "desc": "Acesso secundário ao campus."
+    },
+    {
+        "nome": "Diretoria",
+        "coords": [
+            -22.521774,
+            -43.990663
+        ],
+        "cor": "red",
+        "icone": "briefcase",
+        "cat": "Administrativo",
+        "desc": "Setor de gestão e administração da instituição."
+    },
+    {
+        "nome": "Biblioteca",
+        "coords": [
+            -22.520877,
+            -43.990945
+        ],
+        "cor": "blue",
+        "icone": "book",
+        "cat": "Ensino",
+        "desc": "Acervo bibliográfico aberto a alunos e funcionários.",
+        "agenda": {
+            "seg": [
+                [
+                    "08:00",
+                    "Abertura"
+                ],
+                [
+                    "14:00",
+                    "Estudo"
+                ]
+            ],
+            "ter": [
+                [
+                    "08:00",
+                    "Abertura"
+                ]
+            ],
+            "qua": [
+                [
+                    "08:00",
+                    "Abertura"
+                ],
+                [
+                    "18:00",
+                    "Clube do livro"
+                ]
+            ],
+            "qui": [
+                [
+                    "08:00",
+                    "Abertura"
+                ]
+            ],
+            "sex": [
+                [
+                    "08:00",
+                    "Abertura"
+                ]
+            ],
+            "sab": [
+                [
+                    "09:00",
+                    "Estudo livre"
+                ]
+            ],
+            "dom": []
+        },
+        "fotos": [
+            "fotos/biblioteca-1.jpg",
+            "fotos/biblioteca-2.jpg",
+            "fotos/biblioteca-3.jpg"
+        ]
+    },
+    {
+        "nome": "Prédio da Graduação",
+        "coords": [
+            -22.520178,
+            -43.994086
+        ],
+        "cor": "orange",
+        "icone": "graduation-cap",
+        "cat": "Ensino",
+        "desc": "Bloco central com salas de aula e coordenações."
+    },
+    {
+        "nome": "Auditório",
+        "coords": [
+            -22.520218,
+            -43.990749
+        ],
+        "cor": "purple",
+        "icone": "bullhorn",
+        "cat": "Administrativo",
+        "desc": "Espaço para eventos e apresentações."
+    },
+    {
+        "nome": "Lab. de Artes",
+        "coords": [
+            -22.522104,
+            -43.990095
+        ],
+        "cor": "pink",
+        "icone": "paint-brush",
+        "cat": "Ensino",
+        "desc": "Laboratório para atividades artísticas."
+    },
+    {
+        "nome": "Refeitório",
+        "coords": [
+            -22.52027,
+            -43.990411
+        ],
+        "cor": "cadetblue",
+        "icone": "cutlery",
+        "cat": "Convivência",
+        "desc": "Serviço de alimentação para alunos e funcionários."
+    },
+    {
+        "nome": "Quadra Poliesportiva",
+        "coords": [
+            -22.520471,
+            -43.990526
+        ],
+        "cor": "darkgreen",
+        "icone": "futbol-o",
+        "cat": "Esporte",
+        "desc": "Quadra coberta para prática de esportes.",
+        "agenda": {
+            "seg": [
+                [
+                    "19:00",
+                    "Futsal"
+                ]
+            ],
+            "ter": [
+                [
+                    "07:00",
+                    "Ed. Física"
+                ],
+                [
+                    "19:00",
+                    "Vôlei"
+                ]
+            ],
+            "qua": [
+                [
+                    "19:00",
+                    "Basquete"
+                ]
+            ],
+            "qui": [
+                [
+                    "07:00",
+                    "Ed. Física"
+                ]
+            ],
+            "sex": [
+                [
+                    "19:00",
+                    "Futsal"
+                ]
+            ],
+            "sab": [
+                [
+                    "09:00",
+                    "Aberta"
+                ]
+            ],
+            "dom": []
+        },
+        "fotos": [
+            "fotos/quadra-1.jpg",
+            "fotos/quadra-2.jpg"
+        ]
+    },
+    {
+        "nome": "Plantação / Lavoura",
+        "coords": [
+            -22.519237,
+            -43.994515
+        ],
+        "cor": "green",
+        "icone": "leaf",
+        "cat": "Agropecuária",
+        "desc": "Área de cultivo para atividades de agroecologia."
+    },
+    {
+        "nome": "Estufa",
+        "coords": [
+            -22.520243,
+            -43.991634
+        ],
+        "cor": "orange",
+        "icone": "sun-o",
+        "cat": "Agropecuária",
+        "desc": "Estufa para produção de mudas e experimentos."
+    },
+    {
+        "nome": "Lab. de Suinocultura",
+        "coords": [
+            -22.52004,
+            -43.993464
+        ],
+        "cor": "darkred",
+        "icone": "paw",
+        "cat": "Agropecuária",
+        "desc": "Setor de criação de suínos."
+    },
+    {
+        "nome": "Lab. de Equinos",
+        "coords": [
+            -22.520149,
+            -43.992557
+        ],
+        "cor": "darkpurple",
+        "icone": "paw",
+        "cat": "Agropecuária",
+        "desc": "Área de manejo e criação de cavalos."
+    }
+]

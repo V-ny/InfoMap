@@ -22,6 +22,9 @@ __pycache__/
 iFrota-web/_shot*.png
 .cache/
 
+# ── Apresentações / arquivos grandes que não precisam ir pro repo ──
+*.pptx
+
 # ── Ferramentas pessoais ──
 .claude/
 

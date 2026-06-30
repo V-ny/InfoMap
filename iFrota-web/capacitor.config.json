@@ -1,6 +1,6 @@
 {
   "appId": "com.ifrota.app",
-  "appName": "IFrota",
+  "appName": "IF-rota",
   "webDir": "www",
   "android": {
     "allowMixedContent": false

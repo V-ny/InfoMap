@@ -33,7 +33,7 @@ python _shot.py "http://localhost:8000/index.html" card.png 8000 "window._ifrota
 ## Como rodar localmente
 
 ```powershell
-cd c:\Users\Vny\OneDrive\Desktop\TCC\iFrota-web
+cd iFrota-web
 python -m http.server 8000
 ```
 

@@ -13,6 +13,7 @@ const ITEMS = [
   "data",
   "vendor",
   "icons",
+  "fotos",
 ];
 
 await rm(OUT, { recursive: true, force: true });
