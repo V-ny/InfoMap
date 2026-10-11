@@ -61,9 +61,9 @@ async function bootstrap() {
     // "transforma" enquanto o evento está ativo AGORA. Fora da janela mantém o
     // ícone padrão, mas guarda `evento` p/ a agenda aparecer no card.
     const eventosAgora = eventosAtivosAgora(eventos);
-    const eventos7d = eventosProximosDias(eventos);   // horizonte 31d (pega mensais)
+    const eventosProximos = eventosProximosDias(eventos);   // horizonte 31d (pega mensais)
     const agoraSet = new Set(eventosAgora);
-    const evPorLocal = indexarPorLocal(eventos7d);
+    const evPorLocal = indexarPorLocal(eventosProximos);
     for (const l of locais) {
       const ev = evPorLocal.get(l.nome);
       if (ev) { l.evento = ev; if (agoraSet.has(ev)) l.isEvento = true; }
@@ -75,7 +75,7 @@ async function bootstrap() {
       const tl = eventoParaLocal(ev); tl._temp = true; locais.push(tl);
     });
 
-    const eventosSidebar = eventos7d.map((ev) => {
+    const eventosSidebar = eventosProximos.map((ev) => {
       ev._quando = proximaOcorrencia(ev);
       let local;
       if (ev.local) local = locais.find((l) => l.nome === ev.local);
@@ -104,7 +104,7 @@ async function bootstrap() {
       return (da ? da.getTime() : Infinity) - (db ? db.getTime() : Infinity);
     });
 
-    return { eventosSidebar, eventos7d };
+    return { eventosSidebar, eventosProximos };
   }
   let dados = montarDados();
 
@@ -323,7 +323,7 @@ async function bootstrap() {
     });
     initRouting(map, campusPoly, overpassFeats);
 
-    // Lista lateral de eventos (próximos 7 dias) — entre FAVORITOS e CATEGORIAS.
+    // Lista lateral de eventos (horizonte 31 dias) — entre FAVORITOS e CATEGORIAS.
     ui.setEventosSidebar(dados.eventosSidebar);
 
     // Popup de startup: só os eventos ATIVOS HOJE (separado da lista lateral).

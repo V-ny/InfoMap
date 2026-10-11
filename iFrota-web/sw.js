@@ -3,7 +3,7 @@
 //   - app shell + dados locais → cache-first (precache no install)
 //   - libs CDN (maplibre, fontawesome) → stale-while-revalidate
 //   - tiles/glyphs do mapa → cache-first com cache em runtime (cap simples)
-const VERSION = "ifrota-v40";
+const VERSION = "ifrota-v41";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const TILE_CACHE = `${VERSION}-tiles`;
@@ -58,11 +58,34 @@ self.addEventListener("activate", (event) => {
       Promise.all(
         keys.filter((k) => !k.startsWith(VERSION)).map((k) => caches.delete(k)),
       ),
-    ).then(() => self.clients.claim()),
+    ).then(() => self.clients.claim())
+      .then(() => trimTileCache(true)),
   );
 });
 
+// Cap do cache de tiles: sem isso ele cresce sem limite no dispositivo. A Cache
+// API mantém a ordem de inserção e o put() re-insere no FIM, então reinserir no
+// hit transforma o corte FIFO num LRU barato (protege os tiles mais usados, que
+// são a visão padrão do campus). O trim roda a cada N puts, não a cada fetch —
+// o cap é indicativo, pode passar um pouco entre trims.
+const TILE_CACHE_MAX = 600;
+const TRIM_A_CADA = 25;
+let _putsDesdeTrim = 0;
+async function trimTileCache(force) {
+  if (!force && ++_putsDesdeTrim < TRIM_A_CADA) return;
+  _putsDesdeTrim = 0;
+  const cache = await caches.open(TILE_CACHE);
+  const keys = await cache.keys();
+  for (const k of keys.slice(0, Math.max(0, keys.length - TILE_CACHE_MAX))) {
+    await cache.delete(k);
+  }
+}
+
 function isTileRequest(url) {
+  // Só recursos REMOTOS do mapa. Assets same-origin (ex.: o woff2 do FontAwesome,
+  // que casa com /fonts/) ficam no branch do shell — têm precache e não podem
+  // ser expulsos pelo trim do cache de tiles.
+  if (url.startsWith(self.location.origin)) return false;
   return /tiles\.openfreemap\.org/.test(url) ||
          /\.pbf($|\?)/.test(url) ||
          /\/fonts\//.test(url);
@@ -82,13 +105,23 @@ self.addEventListener("fetch", (event) => {
     event.respondWith(
       caches.open(TILE_CACHE).then(async (cache) => {
         const hit = await cache.match(request);
-        if (hit) return hit;
+        if (hit) {
+          // LRU barato: re-inserir move a entrada pro fim da fila do trim.
+          event.waitUntil(cache.put(request, hit.clone()).catch(() => {}));
+          return hit;
+        }
         try {
           const resp = await fetch(request);
-          if (resp.ok) cache.put(request, resp.clone());
+          if (resp.ok) {
+            // waitUntil segura o SW vivo até o put (e o trim) completarem —
+            // sem isso o navegador pode encerrar o worker e abortar o put.
+            event.waitUntil(
+              cache.put(request, resp.clone()).then(() => trimTileCache(false)),
+            );
+          }
           return resp;
         } catch {
-          return hit || Response.error();
+          return Response.error();
         }
       }),
     );

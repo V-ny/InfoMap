@@ -39,6 +39,8 @@ python -m http.server 8000
 
 Abra http://localhost:8000 no Chrome/Edge.
 
+Para rodar o teste de fumaça do pathfinding (Node puro, sem browser): `npm test`.
+
 > ⚠️ **Não abra direto o `index.html`** (`file://...`) — módulos ES não funcionam via file://. Precisa de um servidor HTTP.
 
 ## Estrutura
@@ -47,10 +49,15 @@ Abra http://localhost:8000 no Chrome/Edge.
 iFrota-web/
 ├── index.html           # Entry point + DOM da UI shell + registro do SW
 ├── manifest.json        # Manifesto PWA (nome, ícones, theme, display)
-├── sw.js                # Service Worker (cache offline: shell + dados + tiles)
+├── sw.js                # Service Worker (cache offline: shell + dados + tiles com cap)
+├── build-www.mjs        # Monta www/ (webDir do Capacitor) só com os assets do app
+├── capacitor.config.json # Config do empacotamento Android (Capacitor)
 ├── _shot.py             # Helper de screenshot via QtWebEngine
 ├── _gen_icons.py        # Gera os ícones PWA (PIL)
+├── tests/               # Testes de fumaça em Node puro (npm test)
 ├── icons/               # icon-192/512 (+maskable) + favicon
+├── fotos/               # Fotos da galeria referenciadas no data/locais.json
+├── vendor/              # maplibre-gl + fontawesome (bundled, sem CDN em runtime)
 ├── css/
 │   ├── reset.css        # Reset base + tipografia
 │   ├── theme.css        # Variáveis CSS claro/escuro (paleta do desktop)
@@ -58,18 +65,25 @@ iFrota-web/
 │   └── ui.css           # Header, search, panel, bottom sheet, banner, toast
 ├── js/
 │   ├── config.js        # Constantes (bounds, cores, paths)
-│   ├── data.js          # Carrega JSONs (locais, campus, overpass)
-│   ├── geo.js           # Haversine + formatação de distância
-│   ├── store.js         # Persistência (localStorage; IndexedDB na Sprint 3)
+│   ├── data.js          # Carrega JSONs (locais, campus, overpass, eventos)
+│   ├── geo.js           # Haversine + ponto-em-polígono + formatação de distância
+│   ├── store.js         # Persistência leve (tema, favoritos, última posição)
+│   ├── admin-store.js   # Edições do admin (pontos/eventos/cardápios) em localStorage
+│   ├── fotos-store.js   # Backend LOCAL de fotos (auth simulada + IndexedDB)
+│   ├── firebase.js      # Integração Firebase — dormente (ver docs/)
+│   ├── firebase-config.js # Credenciais do Firebase (placeholders)
 │   ├── map.js           # Cria mapa + 3D buildings
 │   ├── campus.js        # Máscara invertida + contorno suavizado
 │   ├── markers.js       # Waypoints + seleção + filtro + isolamento
 │   ├── location.js      # GPS (watchPosition / plugin nativo) + posição manual
 │   ├── routing.js       # Rede viária + A* + bridges + desenho rota real/virtual
-│   ├── ui.js            # Controlador da UI shell
+│   ├── eventos.js       # Recorrência, janelas de horário e relógio (hora da web)
+│   ├── sons.js          # Feedback sonoro sutil (Web Audio, sem arquivos)
+│   ├── ui.js            # Controlador da UI shell (card, galeria, busca, admin)
 │   └── main.js          # Orquestrador (bootstrap + callbacks)
 └── data/
-    ├── locais.json      # (copiado de ../iFrota-desktop/locais.json)
+    ├── locais.json      # Waypoints (copiado de ../iFrota-desktop/locais.json)
+    ├── eventos.json     # Eventos-base (recorrência + janelas de horário)
     ├── campus.geojson   # (copiado de ../iFrota-desktop/campus.geojson)
     ├── overpass-cache.json  # (copiado de ../iFrota-desktop/.cache/overpass_campus.json)
     └── style-dark.json  # Estilo MapLibre escuro inline
@@ -87,9 +101,10 @@ iFrota-web/
 | 6 | Pathfinding A* (rede viária + bridges + rota real/virtual) | ✅ |
 | 7 | Teste em device real + off-route/reroute + polish | ⏳ |
 
-> **Nota sobre IndexedDB:** adiado. `localStorage` cobre config/favoritos/posição e o
-> Service Worker cobre cache offline dos assets+tiles. IndexedDB só valeria a pena pra
-> volumes maiores (ex: pré-cache de tiles de toda a região), fora do escopo do TCC.
+> **Nota sobre persistência:** config/favoritos/posição e as edições do admin ficam em
+> `localStorage`; as fotos enviadas pelo admin usam IndexedDB (`fotos-store.js`); o
+> Service Worker cobre o cache offline dos assets+tiles (com cap de entradas). Pré-cache
+> maior (ex: tiles de toda a região) fica fora do escopo do TCC.
 
 ## Migrações do IFrota.py
 
@@ -113,7 +128,7 @@ Status do que foi portado do `IFrota.py` desktop:
 ## Decisões arquiteturais
 
 - **Vanilla JS + ES modules**: zero deps, zero build step. Pra TCC e TWA, simplicidade > tooling. Migração pra Vite/TS possível depois sem perder código.
-- **Dados estáticos no `data/`**: cópias dos JSONs do desktop. Sprint 3 vai mover persistência (config, favoritos) pra IndexedDB.
+- **Dados estáticos no `data/`**: cópias dos JSONs do desktop. Persistência do usuário/admin é local (localStorage + IndexedDB — ver nota acima); Firebase existe mas está dormente.
 - **Estilo escuro inline (`style-dark.json`)**: OpenFreeMap só hospeda 3 estilos claros — pra escuro reusamos as mesmas vector tiles com paint customizado.
 
 ## Sincronizar dados do desktop
@@ -126,4 +141,5 @@ cp ..\iFrota-desktop\campus.geojson .\data\campus.geojson
 cp ..\iFrota-desktop\.cache\overpass_campus.json .\data\overpass-cache.json
 ```
 
-Sprint 4 vai automatizar isso com um script de sync no `manifest.json` ou pre-build hook.
+O empacotamento usa `npm run build:www` (`build-www.mjs`), que copia os assets pra `www/`
+antes do `cap sync` — mas a cópia desktop→web acima continua manual.

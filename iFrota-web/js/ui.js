@@ -801,7 +801,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     }
   };
 
-  // ── EVENTOS (lista lateral, próximos 7 dias) ──
+  // ── EVENTOS (lista lateral, horizonte 31 dias) ──
   // entries: [{ ev, local }]. Clicar direciona pro evento (sem popup).
   function setEventosSidebar(entries) {
     const lista = entries || [];

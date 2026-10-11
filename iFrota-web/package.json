@@ -6,12 +6,13 @@
   "scripts": {
     "build:www": "node build-www.mjs",
     "sync": "node build-www.mjs && cap sync android",
-    "open:android": "cap open android"
+    "open:android": "cap open android",
+    "test": "node tests/routing.test.mjs"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "type": "module",
   "dependencies": {
     "@capacitor/android": "^6.2.1",
     "@capacitor/cli": "^6.2.1",
