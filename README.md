@@ -79,7 +79,8 @@ iFrota-web/
 │   ├── routing.js       # Rede viária + A* + bridges + desenho rota real/virtual
 │   ├── eventos.js       # Recorrência, janelas de horário e relógio (hora da web)
 │   ├── sons.js          # Feedback sonoro sutil (Web Audio, sem arquivos)
-│   ├── ui.js            # Controlador da UI shell (card, galeria, busca, admin)
+│   ├── ui.js            # Controlador da UI shell (card, galeria, busca, painel)
+│   ├── ui-admin.js      # Editores do admin (pontos, eventos, prédios, cardápio)
 │   └── main.js          # Orquestrador (bootstrap + callbacks)
 └── data/
     ├── locais.json      # Waypoints (copiado de ../iFrota-desktop/locais.json)
