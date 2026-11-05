@@ -39,9 +39,57 @@ python -m http.server 8000
 
 Abra http://localhost:8000 no Chrome/Edge.
 
-Para rodar o teste de fumaça do pathfinding (Node puro, sem browser): `npm test`.
+Para rodar os testes (pathfinding + dados, Node puro, sem browser): `npm test`.
 
 > ⚠️ **Não abra direto o `index.html`** (`file://...`) — módulos ES não funcionam via file://. Precisa de um servidor HTTP.
+
+## Publicação (GitHub Pages)
+
+O workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) publica o
+`iFrota-web` a cada push na `main` que altere o app: roda `npm test` (se falhar, nada
+é publicado), monta `www/` com `build-www.mjs` e faz o deploy. O endereço fica em
+`https://<usuario>.github.io/InfoMap/` — é HTTPS, então o app é instalável como PWA
+direto do navegador (Android: "Instalar app"; iPhone: Compartilhar → "Adicionar à
+Tela de Início").
+
+**Ativação (uma vez):** no GitHub, *Settings → Pages → Source: GitHub Actions*.
+
+## Modos de uso
+
+| Modo | Como ativar | O que muda |
+|---|---|---|
+| Público (padrão) | — | Mapa, busca, rotas, eventos e cardápio publicados. Sem área de conta/gestão. |
+| Admin | `?admin=1` na URL (fica salvo no aparelho; `?admin=0` desliga). No APK: 7 toques no título "IF-rota". | Mostra a seção **Conta** com login e as ferramentas de gestão. |
+| Demonstração | `?demo=1` na URL | Carrega `data/eventos.demo.json` (eventos de exemplo, sem datas-limite) no lugar dos reais — para apresentações. |
+
+> A conta admin padrão é criada localmente em cada aparelho (ver `js/fotos-store.js`).
+> O modo admin só **esconde** a gestão do público: o login é local e não protege nada
+> no servidor — o que protege o conteúdo publicado é o acesso de escrita ao repositório.
+
+## Atualizar o conteúdo (eventos, cardápio, pontos)
+
+O que o admin cria no app fica **só no aparelho dele** até ser publicado. A rotina:
+
+1. No app (modo admin): crie/edite eventos, cardápio da semana ou pontos e use
+   **Exportar dados (JSON)** — baixa `ifrota-dados.json`.
+2. No computador, dentro de `iFrota-web/`:
+   ```powershell
+   npm run aplicar-export -- caminho\ifrota-dados.json --previa   # confere o que muda
+   npm run aplicar-export -- caminho\ifrota-dados.json            # grava em data/
+   ```
+3. Commit + push dos arquivos de `data/` → o GitHub Pages republica e os estudantes
+   recebem a atualização na próxima abertura do app.
+4. No aparelho do admin, **Limpar dados criados localmente** (senão os itens aparecem
+   duplicados: a cópia local e a publicada).
+
+Eventos também podem ser escritos à mão em `data/eventos.json` (mesmo formato do
+`eventos.demo.json`). Um evento com `"local"` + `"sala"` vale para uma sala de um
+prédio/bloco. Cardápio vencido não é exibido: o card mostra "ainda não foi publicado"
+com os horários das refeições até a semana nova chegar.
+
+> Fotos enviadas pelo app ficam no IndexedDB do aparelho e **não** entram no export.
+> Para publicar uma foto, coloque o arquivo em `iFrota-web/fotos/` e referencie-o no
+> campo `fotos` do local em `data/locais.json`.
 
 ## Estrutura
 
@@ -54,7 +102,8 @@ iFrota-web/
 ├── capacitor.config.json # Config do empacotamento Android (Capacitor)
 ├── _shot.py             # Helper de screenshot via QtWebEngine
 ├── _gen_icons.py        # Gera os ícones PWA (PIL)
-├── tests/               # Testes de fumaça em Node puro (npm test)
+├── tests/               # Testes em Node puro: pathfinding + dados (npm test)
+├── tools/               # aplicar-export: publica as edições do admin em data/
 ├── icons/               # icon-192/512 (+maskable) + favicon
 ├── fotos/               # Fotos da galeria referenciadas no data/locais.json
 ├── vendor/              # maplibre-gl + fontawesome (bundled, sem CDN em runtime)
@@ -65,6 +114,7 @@ iFrota-web/
 │   └── ui.css           # Header, search, panel, bottom sheet, banner, toast
 ├── js/
 │   ├── config.js        # Constantes (bounds, cores, paths)
+│   ├── modo.js          # Modos público / admin / demonstração
 │   ├── data.js          # Carrega JSONs (locais, campus, overpass, eventos)
 │   ├── geo.js           # Haversine + ponto-em-polígono + formatação de distância
 │   ├── store.js         # Persistência leve (tema, favoritos, última posição)
@@ -84,7 +134,8 @@ iFrota-web/
 │   └── main.js          # Orquestrador (bootstrap + callbacks)
 └── data/
     ├── locais.json      # Waypoints (copiado de ../iFrota-desktop/locais.json)
-    ├── eventos.json     # Eventos-base (recorrência + janelas de horário)
+    ├── eventos.json     # Eventos publicados (recorrência + janelas de horário)
+    ├── eventos.demo.json # Eventos de exemplo (só com ?demo=1)
     ├── campus.geojson   # (copiado de ../iFrota-desktop/campus.geojson)
     ├── overpass-cache.json  # (copiado de ../iFrota-desktop/.cache/overpass_campus.json)
     └── style-dark.json  # Estilo MapLibre escuro inline

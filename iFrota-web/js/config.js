@@ -22,4 +22,5 @@ export const PATHS = {
   campus:   "./data/campus.geojson",
   overpass: "./data/overpass-cache.json",
   eventos:  "./data/eventos.json",
+  eventosDemo: "./data/eventos.demo.json",
 };

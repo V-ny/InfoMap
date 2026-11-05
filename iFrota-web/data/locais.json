@@ -215,20 +215,7 @@
                 "salas": [
                     {
                         "nome": "Lab. de Informática",
-                        "tipo": "Laboratório",
-                        "evento": {
-                            "nome": "Lab. de Informática",
-                            "dias": [
-                                "seg",
-                                "ter",
-                                "qua",
-                                "qui",
-                                "sex"
-                            ],
-                            "horaInicio": "08:00",
-                            "atividade": "Maratona",
-                            "horaFim": "22:00"
-                        }
+                        "tipo": "Laboratório"
                     },
                     {
                         "nome": "Coordenação de Ensino",

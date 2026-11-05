@@ -1,5 +1,6 @@
 // Entry point — orquestra dados, mapa, máscara, marcadores e UI shell.
-import { carregarLocais, carregarCampusPoly, carregarOverpass, carregarEventos } from "./data.js";
+import { carregarLocais, carregarCampusPoly, carregarOverpass, carregarEventos, separarEventosDeSala } from "./data.js";
+import { MODO_DEMO } from "./modo.js";
 import { criarMapa, adicionar3DBuildings } from "./map.js";
 import { aplicarMascaraCampus } from "./campus.js";
 import { adicionarMarcadores, limparMarcadores, limparSelecao, restaurarMarcadores } from "./markers.js";
@@ -38,12 +39,16 @@ async function bootstrap() {
   // dados). O resultado é aplicado mais abaixo, quando refresh() já existe.
   const horaSync = sincronizarHoraWeb();
 
-  const [baseLocais, campusPoly, overpassFeats, baseEventos] = await Promise.all([
+  const [baseLocais, campusPoly, overpassFeats, eventosArquivo] = await Promise.all([
     carregarLocais(),
     carregarCampusPoly(),
     carregarOverpass(),
-    carregarEventos(),
+    carregarEventos({ demo: MODO_DEMO }),
   ]);
+  // Eventos de sala são anexados às salas dos prédios/blocos (uma vez, nos
+  // objetos base); os demais seguem como eventos de topo.
+  const baseEventos = separarEventosDeSala(baseLocais, eventosArquivo);
+  if (MODO_DEMO) console.log("[IFrota] modo demonstração — eventos de exemplo carregados");
 
   // `locais` é o array de TRABALHO (referência estável p/ initUI). montarDados()
   // o reconstrói no lugar mesclando base (json) + custom (admin) e aplicando as

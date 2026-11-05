@@ -7,7 +7,8 @@
     "build:www": "node build-www.mjs",
     "sync": "node build-www.mjs && cap sync android",
     "open:android": "cap open android",
-    "test": "node tests/routing.test.mjs"
+    "test": "node tests/routing.test.mjs && node tests/dados.test.mjs",
+    "aplicar-export": "node tools/aplicar-export.mjs"
   },
   "keywords": [],
   "author": "",

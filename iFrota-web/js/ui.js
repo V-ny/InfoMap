@@ -4,6 +4,7 @@
 import { store } from "./store.js";
 import { COR_HEX } from "./config.js";
 import { initAdminUI } from "./ui-admin.js";
+import { MODO_ADMIN, alternarModoAdmin } from "./modo.js";
 import { selecionarMarcador, limparSelecao, filtrarPorCategoria } from "./markers.js";
 import { haversine, formatarDistancia } from "./geo.js";
 import { HORARIOS_PADRAO, eventoAtivoHoje, eventoAtivoAgora, agoraReal, eventoAtivoNoContainer, formatarJanela } from "./eventos.js";
@@ -83,10 +84,24 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   $("pb-locate").onclick = () => { closePanel(); cb.onLocate?.(); };
   $("pb-setpos").onclick = () => { closePanel(); cb.onSetPos?.(); };
 
-  // ── CONTA / LOGIN (backend de fotos local — sempre disponível) ──
+  // ── MODO ADMIN no APK: 7 toques no título liga/desliga (sem barra de URL) ──
+  let toquesTitulo = 0, toquesTimer = null;
+  document.querySelector(".hdr-title").addEventListener("click", () => {
+    clearTimeout(toquesTimer);
+    toquesTimer = setTimeout(() => { toquesTitulo = 0; }, 3000);
+    if (++toquesTitulo < 7) return;
+    toquesTitulo = 0;
+    const ligado = alternarModoAdmin();
+    showToast(ligado ? "Modo admin ativado" : "Modo admin desativado");
+    setTimeout(() => location.reload(), 900);
+  });
+
+  // ── CONTA / LOGIN (backend de fotos local) — só no modo admin ──
+  // No modo público a seção fica oculta: o que se edita aqui vale só para este
+  // aparelho, e estudantes não devem achar que estão alterando o app de todos.
   const loginModal = $("login-modal");
   let modoCadastro = false;
-  if (fotosAtivo()) {
+  if (MODO_ADMIN && fotosAtivo()) {
     $("admin-section").style.display = "";
     onAuth((user) => {
       isAdmin = !!user;
@@ -242,8 +257,8 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
 
     const head = document.createElement("div"); head.className = "cardapio-head";
     let htm = "";
-    if (vencido) htm += `<div class="cardapio-aviso"><i class="fa fa-exclamation-triangle"></i> Cardápio desatualizado — semana de ${ddmm(ini)} a ${ddmm(fim)} já passou.</div>`;
-    if (ini && fim) htm += `<div class="cardapio-semana"><i class="fa fa-calendar-o"></i> Semana de ${ddmm(ini)} a ${ddmm(fim)}</div>`;
+    if (vencido) htm += `<div class="cardapio-aviso"><i class="fa fa-info-circle"></i> O cardápio desta semana ainda não foi publicado.</div>`;
+    else if (ini && fim) htm += `<div class="cardapio-semana"><i class="fa fa-calendar-o"></i> Semana de ${ddmm(ini)} a ${ddmm(fim)}</div>`;
     if (card.refeicoes && card.refeicoes.length)
       htm += `<div class="cardapio-refeicoes">${card.refeicoes.map(([n, h]) => {
         const m = /(\d{1,2}):(\d{2}).*?(\d{1,2}):(\d{2})/.exec(h);
@@ -251,6 +266,9 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
         return `<span class="${aberto ? "aberto" : ""}"><b>${n}</b> · ${h}${aberto ? ' <em>· aberto agora</em>' : ""}</span>`;
       }).join("")}</div>`;
     head.innerHTML = htm; if (htm) wrap.appendChild(head);
+    // Semana vencida: não exibe o menu antigo como se valesse (os horários das
+    // refeições acima continuam úteis). Volta sozinho quando o admin publicar.
+    if (vencido) return;
 
     const hojeKey = ["dom", "seg", "ter", "qua", "qui", "sex", "sab"][hoje.getDay()];
     let openIdx = 0;   // padrão: segunda
@@ -514,7 +532,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     }
 
     refreshFavIcon();
-    $("card-edit").style.display = ehAdmin() ? "" : "none";
+    $("card-edit").style.display = MODO_ADMIN && ehAdmin() ? "" : "none";
     // Prédios/blocos: navegador de andares/salas (opcionalmente já numa sala alvo).
     // Pontos normais: agenda+galeria direto.
     if (ehContainer(local)) {

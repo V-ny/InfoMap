@@ -33,11 +33,30 @@ export async function carregarOverpass() {
   }
 }
 
-export async function carregarEventos() {
+// demo=true carrega os eventos de exemplo (modo apresentação) no lugar dos reais.
+export async function carregarEventos({ demo = false } = {}) {
+  const url = demo ? PATHS.eventosDemo : PATHS.eventos;
   try {
-    return await fetchJSON(PATHS.eventos);
+    return await fetchJSON(url);
   } catch (e) {
-    console.warn("[IFrota] eventos.json não encontrado, seguindo sem eventos:", e);
+    console.warn(`[IFrota] ${url} não encontrado, seguindo sem eventos:`, e);
     return [];
   }
+}
+
+// Eventos com `sala` acontecem numa sala de um prédio/bloco (`local`): vão para
+// sala.evento, onde o card, o marcador e a sidebar já os procuram. Devolve só os
+// eventos de topo (waypoint inteiro ou ponto temporário).
+export function separarEventosDeSala(locais, eventos) {
+  const topo = [];
+  for (const ev of eventos || []) {
+    if (!ev.sala) { topo.push(ev); continue; }
+    const l = locais.find((x) => x.nome === ev.local);
+    const salas = !l ? [] : l.andares ? l.andares.flatMap((a) => a.salas || []) : (l.salas || []);
+    const s = salas.find((x) => x.nome === ev.sala);
+    if (!s) { console.warn(`[IFrota] evento "${ev.nome}": sala "${ev.sala}" não encontrada em "${ev.local}"`); continue; }
+    const { local, sala, ...evSala } = ev;
+    s.evento = evSala;
+  }
+  return topo;
 }
