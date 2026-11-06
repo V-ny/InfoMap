@@ -48,13 +48,14 @@ export function initLocation(map, { onUpdate, noCampus, onForaCampus } = {}) {
   });
 }
 
-export function setPosicao(lat, lon, { fly = false } = {}) {
+// `precisao` (m) vem do GPS; posição manual/debug é exata (0).
+export function setPosicao(lat, lon, { fly = false, precisao = 0 } = {}) {
   store.setLastPos([lat, lon]);
   if (_map) {
     criarMarcadorUsuario(_map, lat, lon);
     if (fly) _map.flyTo({ center: [lon, lat], zoom: 18, duration: 1000 });
   }
-  _onUpdate?.([lat, lon]);
+  _onUpdate?.([lat, lon], precisao);
 }
 
 export function getPosicao() {
@@ -95,8 +96,8 @@ export function iniciarGPS({ onError } = {}) {
     pararGPS();
     watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const { latitude, longitude } = pos.coords;
-        setPosicao(latitude, longitude);
+        const { latitude, longitude, accuracy } = pos.coords;
+        setPosicao(latitude, longitude, { precisao: accuracy ?? 0 });
         if (!resolved) { resolved = true; resolve([latitude, longitude]); }
       },
       (err) => {
@@ -129,8 +130,8 @@ async function _iniciarGPSNativo(Geolocation, onError) {
           if (!resolved) { resolved = true; reject(err); }
           return;
         }
-        const { latitude, longitude } = pos.coords;
-        setPosicao(latitude, longitude);
+        const { latitude, longitude, accuracy } = pos.coords;
+        setPosicao(latitude, longitude, { precisao: accuracy ?? 0 });
         if (!resolved) { resolved = true; resolve([latitude, longitude]); }
       },
     ).then((id) => { watchId = id; });

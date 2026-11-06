@@ -1,0 +1,28 @@
+# Roda os testes do app (pathfinding + dados) a cada push/PR que mexa no
+# iFrota-web. Não publica nada — o APK é gerado manualmente (docs/BUILD-APK.md).
+name: Testes IF-rota
+
+on:
+  push:
+    branches: [main]
+    paths: ["iFrota-web/**", ".github/workflows/testes.yml"]
+  pull_request:
+    paths: ["iFrota-web/**"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  testes:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: iFrota-web
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+      # Os testes só usam módulos locais — não precisam de npm install.
+      - run: npm test

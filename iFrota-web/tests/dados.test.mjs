@@ -5,6 +5,7 @@
 import { readFileSync } from "node:fs";
 import { mesclarExport } from "../tools/mesclar-export.mjs";
 import { separarEventosDeSala } from "../js/data.js";
+import { dadosValidos } from "../js/remoto.js";
 
 let fail = 0;
 function assert(cond, msg) {
@@ -79,6 +80,14 @@ const evPub = ler("eventos.json");
 assert(evPub.every((e) => !e.local || nomes.includes(e.local)), "eventos publicados apontam para locais existentes");
 const demo = ler("eventos.demo.json");
 assert(demo.every((e) => !e.local || nomes.includes(e.local)), "eventos de demonstração apontam para locais existentes");
+
+// O APK baixa locais.json + eventos.json do repositório e descarta o que não
+// passar em dadosValidos — então o que está em data/ PRECISA passar.
+console.log("validação do download (APK):");
+assert(dadosValidos(pub, evPub), "locais.json + eventos.json publicados passam");
+assert(!dadosValidos([], evPub), "recusa lista de locais vazia");
+assert(!dadosValidos([{ nome: "X", coords: ["a", 1] }], []), "recusa coords não numéricas");
+assert(!dadosValidos(pub, { nome: "x" }), "recusa eventos que não são lista");
 
 console.log(fail ? `\n${fail} asserção(ões) FALHARAM` : "\nTodos os testes passaram.");
 process.exit(fail ? 1 : 0);

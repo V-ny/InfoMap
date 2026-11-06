@@ -5,7 +5,7 @@
   "main": "sw.js",
   "scripts": {
     "build:www": "node build-www.mjs",
-    "sync": "node build-www.mjs && cap sync android",
+    "sync": "node build-www.mjs && cap sync android && node tools/preparar-android.mjs",
     "open:android": "cap open android",
     "test": "node tests/routing.test.mjs && node tests/dados.test.mjs",
     "aplicar-export": "node tools/aplicar-export.mjs"
@@ -16,6 +16,7 @@
   "type": "module",
   "dependencies": {
     "@capacitor/android": "^6.2.1",
+    "@capacitor/app": "^6.0.3",
     "@capacitor/cli": "^6.2.1",
     "@capacitor/core": "^6.2.1",
     "@capacitor/geolocation": "^6.1.1",

@@ -1014,16 +1014,22 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   }
 
   // ── ACESSIBILIDADE & POLISH ──
-  // Esc fecha o que estiver aberto (modais admin → login → foto → popup → busca).
-  document.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
+  // "Voltar" fecha a camada de cima (modais admin → login → foto → popup → busca
+  // → painel → card). Usado pelo Esc e pelo botão voltar do Android (main.js).
+  // Retorna false quando não havia nada aberto.
+  function voltar() {
     const adm = document.querySelector(".adm-modal.open");
-    if (adm) return void adm.classList.remove("open");
-    if ($("login-modal").classList.contains("open")) return void $("login-modal").classList.remove("open");
-    if ($("photo-viewer").classList.contains("open")) return void $("photo-viewer").classList.remove("open");
-    if ($("event-popup").classList.contains("show")) return void esconderEventos();
-    if ($("results-panel").classList.contains("open")) return void $("results-panel").classList.remove("open");
-  });
+    if (adm) { adm.classList.remove("open"); return true; }
+    if (loginModal.classList.contains("open")) { loginModal.classList.remove("open"); return true; }
+    if (viewer.classList.contains("open")) { fecharViewer(); return true; }
+    if (eventPopup.classList.contains("show")) { esconderEventos(); return true; }
+    if (results.classList.contains("open")) { results.classList.remove("open"); return true; }
+    if (sidePanel.classList.contains("open")) { closePanel(); return true; }
+    if (card.classList.contains("expanded")) { card.classList.remove("expanded"); return true; }
+    if (card.classList.contains("open")) { closeCard(); return true; }
+    return false;
+  }
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") voltar(); });
   // aria-label a partir do title nos botões só-ícone (sem rótulo de texto).
   document.querySelectorAll("button[title]:not([aria-label])").forEach((b) => b.setAttribute("aria-label", b.getAttribute("title")));
   $("search-input").setAttribute("aria-label", "Buscar local no campus");
@@ -1041,10 +1047,16 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   };
   window.addEventListener("appinstalled", () => { $("install-section").style.display = "none"; });
 
+  // Rodapé do painel: versão e data do build (build.json, só existe no build).
+  function setVersao({ versao, gerado }) {
+    const data = gerado ? new Date(gerado).toLocaleDateString("pt-BR") : "";
+    $("app-versao").textContent = `IF-rota v${versao}` + (data ? ` · ${data}` : "");
+  }
+
   // API pública (main.js usa)
   return {
-    openCard, closeCard, closePanel,
+    openCard, closeCard, closePanel, voltar,
     showRouteBanner, hideRouteBanner,
-    showToast, mostrarEventos, setEventosSidebar, atualizarCardAoVivo,
+    showToast, mostrarEventos, setEventosSidebar, atualizarCardAoVivo, setVersao,
   };
 }

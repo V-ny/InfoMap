@@ -1,5 +1,6 @@
 // Entry point — orquestra dados, mapa, máscara, marcadores e UI shell.
-import { carregarLocais, carregarCampusPoly, carregarOverpass, carregarEventos, separarEventosDeSala } from "./data.js";
+import { carregarLocaisBrutos, prepararLocais, carregarCampusPoly, carregarOverpass, carregarEventos, separarEventosDeSala } from "./data.js";
+import { remotoAtivo, dadosSalvos, buscarDadosRemotos, carregarBuild } from "./remoto.js";
 import { MODO_DEMO } from "./modo.js";
 import { criarMapa, adicionar3DBuildings } from "./map.js";
 import { aplicarMascaraCampus } from "./campus.js";
@@ -7,7 +8,7 @@ import { adicionarMarcadores, limparMarcadores, limparSelecao, restaurarMarcador
 import { STYLE_LIGHT_URL, STYLE_DARK_URL } from "./config.js";
 import { initUI } from "./ui.js";
 import { store } from "./store.js";
-import { initLocation, iniciarGPS, setManualMode, setPosicao } from "./location.js";
+import { initLocation, iniciarGPS, setManualMode, isManualMode, setPosicao } from "./location.js";
 import { initRouting, calcularRota, limparRota, reAddRouteLayers, atualizarTracking } from "./routing.js";
 import { eventosAtivosAgora, eventosProximosDias, proximaOcorrencia, proximaOcorrenciaData, indexarPorLocal, eventoParaLocal, setRelogioOverride, agoraReal, sincronizarHoraWeb, eventoAtivoNoContainer, salasDoContainer, eventoAtivoAgora } from "./eventos.js";
 import { pontoEmPoligono } from "./geo.js";
@@ -15,6 +16,11 @@ import { somRota, somNotificacao } from "./sons.js";
 import { mesclarLocais, mesclarEventos, mesclarCardapios } from "./admin-store.js";
 // Backend de fotos é LOCAL (js/fotos-store.js, usado pela ui.js). Firebase está
 // dormente — ver docs/IMPLEMENTACAO-FUTURA-FIREBASE.md.
+
+// Navegação: raio de chegada ao destino e precisão mínima do GPS para que uma
+// leitura conte no tracking (ETA ao vivo, off-route, chegada).
+const CHEGADA_M = 15;
+const PRECISAO_MAX_M = 35;
 
 async function bootstrap() {
   // ?dark=1/0 força o tema (debug); senão usa o persistido.
@@ -39,15 +45,25 @@ async function bootstrap() {
   // dados). O resultado é aplicado mais abaixo, quando refresh() já existe.
   const horaSync = sincronizarHoraWeb();
 
-  const [baseLocais, campusPoly, overpassFeats, eventosArquivo] = await Promise.all([
-    carregarLocais(),
+  const [locaisArquivo, campusPoly, overpassFeats, eventosArquivo, build] = await Promise.all([
+    carregarLocaisBrutos(),
     carregarCampusPoly(),
     carregarOverpass(),
     carregarEventos({ demo: MODO_DEMO }),
+    carregarBuild(),
   ]);
+  // Conteúdo remoto (APK): começa pela última cópia baixada do repositório, se
+  // houver; a busca da versão atual roda depois que o mapa abre. A demonstração
+  // usa sempre os arquivos locais.
+  const usarRemoto = remotoAtivo() && !MODO_DEMO;
+  const fonte = (usarRemoto && dadosSalvos(build?.gerado)) || { locais: locaisArquivo, eventos: eventosArquivo };
+  // Assinatura do conteúdo em uso — calculada ANTES de separarEventosDeSala,
+  // que pendura os eventos nas salas (muta os objetos).
+  let assinaturaDados = JSON.stringify([fonte.locais, fonte.eventos]);
   // Eventos de sala são anexados às salas dos prédios/blocos (uma vez, nos
   // objetos base); os demais seguem como eventos de topo.
-  const baseEventos = separarEventosDeSala(baseLocais, eventosArquivo);
+  const baseLocais = prepararLocais(fonte.locais);
+  const baseEventos = separarEventosDeSala(baseLocais, fonte.eventos);
   if (MODO_DEMO) console.log("[IFrota] modo demonstração — eventos de exemplo carregados");
 
   // `locais` é o array de TRABALHO (referência estável p/ initUI). montarDados()
@@ -131,6 +147,15 @@ async function bootstrap() {
     adicionar3DBuildings(map, isDark);
   }
 
+  function encerrarNav() {
+    navLocal = null;
+    ui.hideRouteBanner();
+    limparRota();
+    restaurarMarcadores();
+    limparSelecao();
+    if (dadosPendentes) { dadosPendentes = false; refresh(); }
+  }
+
   // UI shell
   const ui = initUI({
     locais,
@@ -178,13 +203,7 @@ async function bootstrap() {
         setManualMode(true);
         ui.showToast("Toque no mapa para definir sua posição");
       },
-      onClearRoute: () => {
-        navLocal = null;
-        ui.hideRouteBanner();
-        limparRota();
-        restaurarMarcadores();
-        limparSelecao();
-      },
+      onClearRoute: () => encerrarNav(),
       // Admin: pedir um ponto no mapa (cria waypoint) e refazer marcadores/dados.
       onPedirLocalMapa: (callback) => pedirLocalNoMapa(callback),
       onAdminChange: () => refresh(),
@@ -216,6 +235,33 @@ async function bootstrap() {
     ui.setEventosSidebar(dados.eventosSidebar);
   }
 
+  // Busca o conteúdo publicado no repositório (só APK / ?remoto=1). Se mudou,
+  // troca os dados base no lugar (as referências passadas à UI continuam válidas)
+  // e refaz o mapa — ou espera a rota ativa terminar para não bagunçá-la.
+  let dadosPendentes = false;
+  let ultimaBusca = 0;
+  function atualizarDoRemoto() {
+    if (!usarRemoto) return;
+    ultimaBusca = Date.now();
+    buscarDadosRemotos().then((novo) => {
+      if (!novo) return;
+      const ass = JSON.stringify([novo.locais, novo.eventos]);
+      if (ass === assinaturaDados) return;
+      assinaturaDados = ass;
+      baseLocais.splice(0, baseLocais.length, ...prepararLocais(novo.locais));
+      baseEventos.splice(0, baseEventos.length, ...separarEventosDeSala(baseLocais, novo.eventos));
+      console.log("[IFrota] conteúdo atualizado a partir do repositório");
+      if (navLocal) { dadosPendentes = true; return; }
+      refresh();
+      ui.showToast("Conteúdo do campus atualizado");
+    });
+  }
+  // App que volta do segundo plano (minimizado pelo botão voltar) também busca,
+  // no máximo a cada 30 min.
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && Date.now() - ultimaBusca > 30 * 60 * 1000) atualizarDoRemoto();
+  });
+
   // Modo "escolher ponto no mapa" (criação de waypoint pelo admin).
   let pickCb = null;
   function pedirLocalNoMapa(callback) {
@@ -235,6 +281,24 @@ async function bootstrap() {
     const c = pickCb; pickCb = null; map.getCanvas().style.cursor = "";
     c([lat, lon]); return true;
   };
+
+  // Botão voltar do Android (APK, plugin @capacitor/app). Sem tratar, ele fecha
+  // o app de qualquer tela. Ordem: camada aberta da UI → escolha de ponto no
+  // mapa → rota ativa → minimiza (mantém o estado, como os apps de mapa).
+  const AppNativo = window.Capacitor?.isNativePlatform?.() ? window.Capacitor.Plugins?.App : null;
+  AppNativo?.addListener("backButton", () => {
+    if (ui.voltar()) return;
+    if (pickCb || isManualMode()) {
+      pickCb = null; setManualMode(false);
+      map.getCanvas().style.cursor = "";
+      ui.showToast("Seleção no mapa cancelada");
+      return;
+    }
+    if (navLocal) { encerrarNav(); ui.showToast("Rota encerrada"); return; }
+    AppNativo.minimizeApp();
+  });
+
+  if (build) ui.setVersao(build);
 
   window._ifrotaUI = ui;       // debug/testes
   window._ifrotaLocais = locais;
@@ -306,10 +370,19 @@ async function bootstrap() {
     initLocation(map, {
       noCampus,   // só aceita posição manual dentro da área delimitada
       onForaCampus: () => ui.showToast("Esse ponto está fora do campus — escolha um local dentro da área"),
-      onUpdate: (latlon) => {
+      onUpdate: (latlon, precisao) => {
         if (!navLocal) return;   // só rastreia durante uma rota ativa
+        // Leitura imprecisa (GPS frio, dentro de prédio) não decide nada: só
+        // move o marcador. Sem isso ela gera "saiu da rota" falso e reroute.
+        if (precisao > PRECISAO_MAX_M) return;
         const t = atualizarTracking(latlon[0], latlon[1]);
         if (!t) return;
+        if (t.remaining <= CHEGADA_M) {
+          ui.showToast(`✓ Você chegou: ${navLocal.nome}`, 3000);
+          somNotificacao();
+          encerrarNav();
+          return;
+        }
         if (t.reroute) {
           // Saiu da área do campus → não recalcula (origem precisa estar no campus).
           if (!noCampus(latlon[0], latlon[1])) {
@@ -338,6 +411,7 @@ async function bootstrap() {
     }
 
     console.log(`[IFrota] mapa pronto — ${locais.length} waypoints carregados`);
+    atualizarDoRemoto();
   });
 }
 

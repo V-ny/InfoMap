@@ -24,3 +24,8 @@ export const PATHS = {
   eventos:  "./data/eventos.json",
   eventosDemo: "./data/eventos.demo.json",
 };
+
+// Conteúdo publicado (locais + eventos/cardápio) que o APK busca ao abrir, para
+// atualizar sem reinstalar — basta commit + push em data/. null desliga.
+// Ver js/remoto.js.
+export const DADOS_REMOTOS = "https://raw.githubusercontent.com/V-ny/InfoMap/main/iFrota-web/data/";

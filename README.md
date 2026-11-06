@@ -43,23 +43,35 @@ Para rodar os testes (pathfinding + dados, Node puro, sem browser): `npm test`.
 
 > ⚠️ **Não abra direto o `index.html`** (`file://...`) — módulos ES não funcionam via file://. Precisa de um servidor HTTP.
 
-## Publicação (GitHub Pages)
+## Testes automáticos
 
-O workflow [`.github/workflows/pages.yml`](.github/workflows/pages.yml) publica o
-`iFrota-web` a cada push na `main` que altere o app: roda `npm test` (se falhar, nada
-é publicado), monta `www/` com `build-www.mjs` e faz o deploy. O endereço fica em
-`https://<usuario>.github.io/InfoMap/` — é HTTPS, então o app é instalável como PWA
-direto do navegador (Android: "Instalar app"; iPhone: Compartilhar → "Adicionar à
-Tela de Início").
+O workflow [`.github/workflows/testes.yml`](.github/workflows/testes.yml) roda `npm test`
+a cada push na `main` que altere o app. Ele só testa: o APK é gerado à mão
+([docs/BUILD-APK.md](docs/BUILD-APK.md)).
 
-**Ativação (uma vez):** no GitHub, *Settings → Pages → Source: GitHub Actions*.
+## Conteúdo atualizado sem reinstalar o APK
+
+O APK traz os dados embutidos. Ao abrir (e ao voltar do segundo plano, no máximo a
+cada 30 min), ele também baixa `locais.json` e `eventos.json` direto do repositório
+(`DADOS_REMOTOS` em `js/config.js`, via raw.githubusercontent.com). Assim, eventos e
+cardápio novos chegam aos estudantes com um simples push em `data/`.
+
+- **Sem internet:** o app usa a última cópia baixada. Se não houver, usa a que veio
+  no APK. Uma cópia mais antiga que o próprio APK é descartada (`build.json`).
+- **Arquivo quebrado no repositório:** é ignorado (o `npm test` também confere isso).
+- **Durante uma rota:** a atualização espera a rota terminar.
+- **No navegador (dev):** fica desligada, para não sobrescrever as edições locais.
+  `?remoto=1` liga para teste.
+- O GitHub guarda os arquivos em cache por até ~5 min depois do push.
+- **Requisito:** o repositório precisa ser público. Para desligar a busca, use
+  `DADOS_REMOTOS = null`.
 
 ## Modos de uso
 
 | Modo | Como ativar | O que muda |
 |---|---|---|
 | Público (padrão) | — | Mapa, busca, rotas, eventos e cardápio publicados. Sem área de conta/gestão. |
-| Admin | `?admin=1` na URL (fica salvo no aparelho; `?admin=0` desliga). No APK: 7 toques no título "IF-rota". | Mostra a seção **Conta** com login e as ferramentas de gestão. |
+| Admin | No APK: 7 toques no título "IF-rota" (de novo para desligar). No navegador: `?admin=1` (fica salvo; `?admin=0` desliga). | Mostra a seção **Conta** com login e as ferramentas de gestão. |
 | Demonstração | `?demo=1` na URL | Carrega `data/eventos.demo.json` (eventos de exemplo, sem datas-limite) no lugar dos reais — para apresentações. |
 
 > A conta admin padrão é criada localmente em cada aparelho (ver `js/fotos-store.js`).
@@ -77,8 +89,8 @@ O que o admin cria no app fica **só no aparelho dele** até ser publicado. A ro
    npm run aplicar-export -- caminho\ifrota-dados.json --previa   # confere o que muda
    npm run aplicar-export -- caminho\ifrota-dados.json            # grava em data/
    ```
-3. Commit + push dos arquivos de `data/` → o GitHub Pages republica e os estudantes
-   recebem a atualização na próxima abertura do app.
+3. Commit + push dos arquivos de `data/`. Os APKs instalados baixam a versão nova na
+   próxima abertura do app (ver acima).
 4. No aparelho do admin, **Limpar dados criados localmente** (senão os itens aparecem
    duplicados: a cópia local e a publicada).
 
@@ -103,7 +115,7 @@ iFrota-web/
 ├── _shot.py             # Helper de screenshot via QtWebEngine
 ├── _gen_icons.py        # Gera os ícones PWA (PIL)
 ├── tests/               # Testes em Node puro: pathfinding + dados (npm test)
-├── tools/               # aplicar-export: publica as edições do admin em data/
+├── tools/               # aplicar-export (edições do admin → data/) + preparar-android
 ├── icons/               # icon-192/512 (+maskable) + favicon
 ├── fotos/               # Fotos da galeria referenciadas no data/locais.json
 ├── vendor/              # maplibre-gl + fontawesome (bundled, sem CDN em runtime)
@@ -115,6 +127,7 @@ iFrota-web/
 ├── js/
 │   ├── config.js        # Constantes (bounds, cores, paths)
 │   ├── modo.js          # Modos público / admin / demonstração
+│   ├── remoto.js        # Busca o conteúdo publicado no repositório (APK)
 │   ├── data.js          # Carrega JSONs (locais, campus, overpass, eventos)
 │   ├── geo.js           # Haversine + ponto-em-polígono + formatação de distância
 │   ├── store.js         # Persistência leve (tema, favoritos, última posição)

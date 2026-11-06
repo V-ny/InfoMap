@@ -8,8 +8,13 @@ async function fetchJSON(url) {
   return r.json();
 }
 
-export async function carregarLocais() {
-  const arr = await fetchJSON(PATHS.locais);
+// locais.json como está no arquivo (o main compara versões e escolhe a fonte).
+export async function carregarLocaisBrutos() {
+  return fetchJSON(PATHS.locais);
+}
+
+// Campos de runtime derivados do arquivo (cor da categoria em hex).
+export function prepararLocais(arr) {
   return arr.map(l => ({ ...l, cor_hex: COR_HEX[l.cor || "green"] || "#5cb85c" }));
 }
 
