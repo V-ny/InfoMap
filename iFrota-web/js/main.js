@@ -2,10 +2,9 @@
 import { carregarLocaisBrutos, prepararLocais, carregarCampusPoly, carregarOverpass, carregarEventos, separarEventosDeSala } from "./data.js";
 import { remotoAtivo, dadosSalvos, buscarDadosRemotos, carregarBuild } from "./remoto.js";
 import { MODO_DEMO } from "./modo.js";
-import { criarMapa, adicionar3DBuildings } from "./map.js";
+import { criarMapa, carregarEstilo, adicionar3DBuildings } from "./map.js";
 import { aplicarMascaraCampus } from "./campus.js";
 import { adicionarMarcadores, limparMarcadores, limparSelecao, restaurarMarcadores } from "./markers.js";
-import { STYLE_LIGHT_URL, STYLE_DARK_URL } from "./config.js";
 import { initUI } from "./ui.js";
 import { store } from "./store.js";
 import { initLocation, iniciarGPS, setManualMode, isManualMode, setPosicao } from "./location.js";
@@ -46,12 +45,13 @@ async function bootstrap() {
   // dados). O resultado é aplicado mais abaixo, quando refresh() já existe.
   const horaSync = sincronizarHoraWeb();
 
-  const [locaisArquivo, campusPoly, overpassFeats, eventosArquivo, build] = await Promise.all([
+  const [locaisArquivo, campusPoly, overpassFeats, eventosArquivo, build, estilo] = await Promise.all([
     carregarLocaisBrutos(),
     carregarCampusPoly(),
     carregarOverpass(),
     carregarEventos({ demo: MODO_DEMO }),
     carregarBuild(),
+    carregarEstilo(dark),
   ]);
   // Conteúdo remoto (APK): começa pela última cópia baixada do repositório, se
   // houver; a busca da versão atual roda depois que o mapa abre. A demonstração
@@ -130,7 +130,7 @@ async function bootstrap() {
   }
   let dados = montarDados();
 
-  const map = criarMapa({ dark });
+  const map = criarMapa({ dark, style: estilo });
   window._ifrotaMap = map;
 
   // Destino da navegação ativa (null quando não há rota). Usado pelo tracking
@@ -221,8 +221,12 @@ async function bootstrap() {
           aplicarCamadas(isDark);
           reAddRouteLayers();
         };
-        map.setStyle(isDark ? STYLE_DARK_URL : STYLE_LIGHT_URL);
-        map.once("idle", reapply);
+        // diff:false = troca completa, como era com URL (o "idle" abaixo
+        // re-adiciona máscara, prédios 3D e rota por cima do estilo novo).
+        carregarEstilo(isDark).then((st) => {
+          map.setStyle(st, { diff: false });
+          map.once("idle", reapply);
+        });
       },
     },
   });

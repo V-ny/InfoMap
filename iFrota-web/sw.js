@@ -3,7 +3,7 @@
 //   - app shell + dados locais → cache-first (precache no install)
 //   - libs CDN (maplibre, fontawesome) → stale-while-revalidate
 //   - tiles/glyphs do mapa → cache-first com cache em runtime (cap simples)
-const VERSION = "ifrota-v45";
+const VERSION = "ifrota-v46";
 const SHELL_CACHE = `${VERSION}-shell`;
 const RUNTIME_CACHE = `${VERSION}-runtime`;
 const TILE_CACHE = `${VERSION}-tiles`;
@@ -43,6 +43,7 @@ const SHELL_ASSETS = [
   "./data/campus.geojson",
   "./data/overpass-cache.json",
   "./data/style-dark.json",
+  "./vendor/mapa/style-light.json",
   "./data/eventos.json",
   "./icons/icon-192.png",
   "./icons/icon-512.png",

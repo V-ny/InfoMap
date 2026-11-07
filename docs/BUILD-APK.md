@@ -70,9 +70,14 @@ ferramentas que não usam o trust store do Windows:
 3. **sdkmanager licenças:** o prompt lê do console, trava headless. Solução: escrever os
    hashes em `Sdk/licenses/android-sdk-license` direto (hashes públicos de CI).
 
-### Limitação conhecida
-- Os tiles do mapa base vêm da internet (OpenFreeMap). Os já vistos ficam em cache
-  (até ~600), então o campus funciona offline depois da primeira abertura com rede.
+### Mapa base embutido (offline desde a 1ª abertura)
+O mapa base vem dentro do APK, em `vendor/mapa/`. São ~1 MB com tiles do zoom 14
+cobrindo a área navegável, os estilos claro e escuro, as fontes e os ícones. O app
+abre e navega sem internet. Para atualizar com dados mais novos do OpenStreetMap,
+ou depois de mudar os limites do campus em `js/config.js`:
+```powershell
+npm run baixar-mapa
+```
 
 ---
 

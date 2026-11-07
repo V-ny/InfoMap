@@ -103,12 +103,12 @@
 .panel-subtitle { color: var(--leg-tit); font-size: 11px; font-weight: 500; margin-top: 2px; }
 
 .panel-section { padding: 14px 16px 6px; }
-/* Versão do build no pé do painel (margin-top:auto empurra pro fim). */
-.panel-versao {
+/* Pé do painel: versão do build + crédito do mapa (margin-top:auto empurra pro fim). */
+.panel-rodape {
   margin-top: auto; padding: 18px 20px calc(14px + env(safe-area-inset-bottom));
-  color: var(--leg-tit); font-size: 10px; text-align: center; opacity: 0.7;
+  color: var(--leg-tit); font-size: 10px; line-height: 1.6; text-align: center; opacity: 0.7;
 }
-.panel-versao:empty { display: none; }
+#app-versao:empty { display: none; }
 .section-header {
   color: var(--leg-tit); font-size: 10px; font-weight: 700; letter-spacing: 1.4px;
   padding: 8px 4px 6px;

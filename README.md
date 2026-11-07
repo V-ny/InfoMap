@@ -109,16 +109,16 @@ com os horários das refeições até a semana nova chegar.
 iFrota-web/
 ├── index.html           # Entry point + DOM da UI shell + registro do SW
 ├── manifest.json        # Manifesto PWA (nome, ícones, theme, display)
-├── sw.js                # Service Worker (cache offline: shell + dados + tiles com cap)
+├── sw.js                # Service Worker (cache offline da versão navegador)
 ├── build-www.mjs        # Monta www/ (webDir do Capacitor) só com os assets do app
 ├── capacitor.config.json # Config do empacotamento Android (Capacitor)
 ├── _shot.py             # Helper de screenshot via QtWebEngine
 ├── _gen_icons.py        # Gera os ícones PWA (PIL)
 ├── tests/               # Testes em Node puro: pathfinding, dados, texto/eventos (npm test)
-├── tools/               # aplicar-export (edições do admin → data/) + preparar-android
+├── tools/               # aplicar-export (edições do admin → data/), preparar-android, baixar-mapa
 ├── icons/               # icon-192/512 (+maskable) + favicon
 ├── fotos/               # Fotos da galeria referenciadas no data/locais.json
-├── vendor/              # maplibre-gl + fontawesome (bundled, sem CDN em runtime)
+├── vendor/              # maplibre-gl, fontawesome e mapa/ (mapa base offline: tiles, fontes, ícones)
 ├── css/
 │   ├── reset.css        # Reset base + tipografia
 │   ├── theme.css        # Variáveis CSS claro/escuro (paleta do desktop)
@@ -169,8 +169,8 @@ iFrota-web/
 
 > **Nota sobre persistência:** config/favoritos/posição e as edições do admin ficam em
 > `localStorage`; as fotos enviadas pelo admin usam IndexedDB (`fotos-store.js`); o
-> Service Worker cobre o cache offline dos assets+tiles (com cap de entradas). Pré-cache
-> maior (ex: tiles de toda a região) fica fora do escopo do TCC.
+> mapa base vem embutido (`vendor/mapa/`), e o Service Worker cobre o cache offline da
+> versão PWA no navegador.
 
 ## Migrações do IFrota.py
 
@@ -195,7 +195,8 @@ Status do que foi portado do `IFrota.py` desktop:
 
 - **Vanilla JS + ES modules**: zero deps, zero build step. Pra TCC e TWA, simplicidade > tooling. Migração pra Vite/TS possível depois sem perder código.
 - **Dados estáticos no `data/`**: cópias dos JSONs do desktop. Persistência do usuário/admin é local (localStorage + IndexedDB — ver nota acima); Firebase existe mas está dormente.
-- **Estilo escuro inline (`style-dark.json`)**: OpenFreeMap só hospeda 3 estilos claros — pra escuro reusamos as mesmas vector tiles com paint customizado.
+- **Mapa base embutido (`vendor/mapa/`)**: a área navegável cabe em 4 vector tiles do zoom 14 (o MapLibre amplia até o 21), então tiles, fontes e ícones do OpenFreeMap vão dentro do app (`npm run baixar-mapa`). O app abre offline desde a 1ª vez e não depende do servidor de tiles.
+- **Estilo escuro próprio (`style-dark.json`)**: OpenFreeMap só hospeda estilos claros — o escuro reusa as mesmas vector tiles com paint customizado.
 
 ## Sincronizar dados do desktop
 

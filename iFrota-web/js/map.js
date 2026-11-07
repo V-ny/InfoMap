@@ -1,10 +1,25 @@
 // Inicializa o MapLibre GL com o estilo, bounds e câmera 3D do IFrota.
 import { CENTRO, ZOOM_PADRAO, SW, NE, STYLE_LIGHT_URL, STYLE_DARK_URL } from "./config.js";
 
-export function criarMapa({ dark = false } = {}) {
+// O mapa base é embutido no app (vendor/mapa/, gerado por tools/baixar-mapa.mjs):
+// os estilos usam o prefixo "mapa-local://", trocado aqui pela URL absoluta da
+// pasta — o MapLibre não resolve URLs relativas de tiles/glifos/sprites.
+const BASE_MAPA = new URL("./vendor/mapa/", document.baseURI).href;
+const _estilos = new Map();   // url → Promise<objeto do estilo>
+
+export async function carregarEstilo(dark = false) {
+  const url = dark ? STYLE_DARK_URL : STYLE_LIGHT_URL;
+  if (!_estilos.has(url)) {
+    _estilos.set(url, fetch(url)
+      .then((r) => { if (!r.ok) throw new Error(`Falha ao carregar ${url}: ${r.status}`); return r.text(); })
+      .then((t) => JSON.parse(t.replaceAll("mapa-local://", BASE_MAPA))));
+  }
+  return structuredClone(await _estilos.get(url));
+}
+
+export function criarMapa({ dark = false, style } = {}) {
   if (dark) document.body.classList.add("dark");
 
-  const style = dark ? STYLE_DARK_URL : STYLE_LIGHT_URL;
   const map = new maplibregl.Map({
     container: "map",
     style,

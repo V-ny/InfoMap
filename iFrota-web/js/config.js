@@ -7,7 +7,8 @@ export const CENTRO = [
 ];
 export const ZOOM_PADRAO = 17;
 
-export const STYLE_LIGHT_URL = "https://tiles.openfreemap.org/styles/positron";
+// Estilos do mapa base — tiles, fontes e ícones embutidos em vendor/mapa/.
+export const STYLE_LIGHT_URL = "./vendor/mapa/style-light.json";
 export const STYLE_DARK_URL = "./data/style-dark.json";
 
 export const COR_HEX = {
