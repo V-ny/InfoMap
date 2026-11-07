@@ -5,6 +5,7 @@
 // e devolve os editores que o botão "editar" do card abre.
 import { HORARIOS_PADRAO } from "./eventos.js";
 import { COR_HEX } from "./config.js";
+import { esc, icone } from "./texto.js";
 import {
   addLocalCustom, getLocaisCustom, removeLocalCustom,
   addEventoCustom, getEventosCustom, removeEventoCustom,
@@ -397,8 +398,8 @@ export function initAdminUI({ locais, baseEventos = [], cb = {}, closePanel, sho
       const row = document.createElement("div");
       row.className = "adm-row";
       row.innerHTML =
-        `<input class="login-input ed-ini" type="time" title="Início" value="${sala.evento.horaInicio || ""}">` +
-        `<input class="login-input ed-fim" type="time" title="Fim" value="${sala.evento.horaFim || ""}">`;
+        `<input class="login-input ed-ini" type="time" title="Início" value="${esc(sala.evento.horaInicio)}">` +
+        `<input class="login-input ed-fim" type="time" title="Fim" value="${esc(sala.evento.horaFim)}">`;
       row.querySelector(".ed-ini").oninput = (e) => { sala.evento.horaInicio = e.target.value; };
       row.querySelector(".ed-fim").oninput = (e) => { sala.evento.horaFim = e.target.value; };
       box.appendChild(row);
@@ -600,9 +601,9 @@ export function initAdminUI({ locais, baseEventos = [], cb = {}, closePanel, sho
     eventos.forEach((e) => {
       const row = document.createElement("div"); row.className = "adm-item";
       row.innerHTML =
-        `<span class="adm-item-ico" style="background:${GOLD}"><i class="fa fa-${e.icone || "star"}"></i></span>` +
-        `<span class="adm-item-txt"><span class="adm-item-nome">${e.nome}</span>` +
-        `<span class="adm-item-sub">${e.local ? e.local : "ponto temporário"} · ${e.fonte === "base" ? "padrão" : "criado por você"}</span></span>` +
+        `<span class="adm-item-ico" style="background:${GOLD}"><i class="fa fa-${icone(e.icone, "star")}"></i></span>` +
+        `<span class="adm-item-txt"><span class="adm-item-nome">${esc(e.nome)}</span>` +
+        `<span class="adm-item-sub">${e.local ? esc(e.local) : "ponto temporário"} · ${e.fonte === "base" ? "padrão" : "criado por você"}</span></span>` +
         `<button class="adm-item-btn">Desativar</button>`;
       row.querySelector("button").onclick = () => {
         if (e.fonte === "custom") removeEventoCustom(e.id);
@@ -621,9 +622,9 @@ export function initAdminUI({ locais, baseEventos = [], cb = {}, closePanel, sho
       const hex = COR_HEX[p.cor] || "#5cb85c";
       const row = document.createElement("div"); row.className = "adm-item";
       row.innerHTML =
-        `<span class="adm-item-ico" style="background:${hex}"><i class="fa fa-${p.icone || "map-marker"}"></i></span>` +
-        `<span class="adm-item-txt"><span class="adm-item-nome">${p.nome}</span>` +
-        `<span class="adm-item-sub">${p.cat || ""}</span></span>` +
+        `<span class="adm-item-ico" style="background:${hex}"><i class="fa fa-${icone(p.icone)}"></i></span>` +
+        `<span class="adm-item-txt"><span class="adm-item-nome">${esc(p.nome)}</span>` +
+        `<span class="adm-item-sub">${esc(p.cat)}</span></span>` +
         `<button class="adm-item-btn">Remover</button>`;
       row.querySelector("button").onclick = () => {
         if (!confirm(`Remover o ponto "${p.nome}"?`)) return;

@@ -7,6 +7,7 @@ import { initAdminUI } from "./ui-admin.js";
 import { MODO_ADMIN, alternarModoAdmin } from "./modo.js";
 import { selecionarMarcador, limparSelecao, filtrarPorCategoria } from "./markers.js";
 import { haversine, formatarDistancia } from "./geo.js";
+import { esc, icone, normalizar } from "./texto.js";
 import { HORARIOS_PADRAO, eventoAtivoHoje, eventoAtivoAgora, agoraReal, eventoAtivoNoContainer, formatarJanela } from "./eventos.js";
 import { somPonto, sonsAtivos, setSons } from "./sons.js";
 // Backend de fotos: LOCAL (IndexedDB + login local). Pra usar o Firebase (nuvem),
@@ -175,9 +176,9 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
       const onde = ev._sala && local ? `${local.nome} · ${ev._sala}` : "";
       const sub = [quando, janela, onde].filter(Boolean).join(" · ");
       item.innerHTML =
-        `<span class="evento-ico"><i class="fa fa-${(local && local.icone) || ev.icone || "star"}"></i></span>` +
-        `<span class="evento-txt"><span class="evento-nome">${ev.nome}</span>` +
-        (sub ? `<span class="evento-quando">${sub}</span>` : "") + `</span>`;
+        `<span class="evento-ico"><i class="fa fa-${icone((local && local.icone) || ev.icone, "star")}"></i></span>` +
+        `<span class="evento-txt"><span class="evento-nome">${esc(ev.nome)}</span>` +
+        (sub ? `<span class="evento-quando">${esc(sub)}</span>` : "") + `</span>`;
       item.onclick = () => {
         closePanel();
         if (local) { cb.onSelectResult?.(local); openCard(local, salaPath ? { salaPath } : {}); }
@@ -222,8 +223,8 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
       const item = document.createElement("button");
       item.className = "fav-item";
       item.innerHTML =
-        `<span class="fav-ico" style="background:${hex}"><i class="fa fa-${local.icone || "map-marker"}"></i></span>` +
-        `<span class="fav-nome">${local.nome}</span>` +
+        `<span class="fav-ico" style="background:${hex}"><i class="fa fa-${icone(local.icone)}"></i></span>` +
+        `<span class="fav-nome">${esc(local.nome)}</span>` +
         `<span class="fav-star"><i class="fa fa-star"></i></span>`;
       item.onclick = () => {
         closePanel();
@@ -294,7 +295,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
         const veg = reVeg.test(it);
         const el = document.createElement("div");
         el.className = "cardapio-item" + (idx === 0 && !veg ? " principal" : "") + (veg ? " veg" : "");
-        el.innerHTML = veg ? `<i class="fa fa-leaf"></i> ${it.replace(reVeg, "")}` : it;
+        el.innerHTML = veg ? `<i class="fa fa-leaf"></i> ${esc(it.replace(reVeg, ""))}` : esc(it);
         body.appendChild(el);
       });
       hb.onclick = () => row.classList.toggle("open");
@@ -340,7 +341,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     if (!interdito) { el.style.display = "none"; el.innerHTML = ""; return; }
     el.style.display = "";
     const motivo = (obj.motivo || "").trim();
-    el.innerHTML = `<i class="fa fa-exclamation-triangle"></i> <span><b>Interditado</b>${motivo ? " · " + motivo : ""}</span>`;
+    el.innerHTML = `<i class="fa fa-exclamation-triangle"></i> <span><b>Interditado</b>${motivo ? " · " + esc(motivo) : ""}</span>`;
   }
   // Partes DEPENDENTES DO TEMPO (cardápio + agenda + status) — re-renderizáveis ao vivo.
   function renderTempoDe(obj) {
@@ -434,11 +435,11 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     // evento ativo → ícone dourado (sobrepõe a cor do tipo)
     const bg = evento ? "linear-gradient(150deg,#ffe27a,#ffc107 45%,#d4a017)" : (cor || "var(--panel-tit)");
     const ic = badge != null
-      ? `<span class="cn-ico badge"${evento ? ` style="background:${bg}"` : ""}>${badge}</span>`
-      : `<span class="cn-ico" style="background:${bg}"><i class="fa fa-${ico}"></i></span>`;
+      ? `<span class="cn-ico badge"${evento ? ` style="background:${bg}"` : ""}>${esc(badge)}</span>`
+      : `<span class="cn-ico" style="background:${bg}"><i class="fa fa-${icone(ico, "map-pin")}"></i></span>`;
     row.innerHTML = ic +
-      `<span class="cn-txt"><span class="cn-nome">${nome}${evento ? ' <i class="fa fa-star cn-star"></i>' : ""}</span>` +
-      (sub ? `<span class="cn-sub">${sub}</span>` : "") + "</span>" +
+      `<span class="cn-txt"><span class="cn-nome">${esc(nome)}${evento ? ' <i class="fa fa-star cn-star"></i>' : ""}</span>` +
+      (sub ? `<span class="cn-sub">${esc(sub)}</span>` : "") + "</span>" +
       `<span class="cn-chevron"><i class="fa fa-chevron-right"></i></span>`;
     return row;
   }
@@ -511,7 +512,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     iconEl.style.background = ehEvento
       ? "linear-gradient(150deg, #ffe27a, #ffc107 45%, #d4a017)"
       : (local.cor_hex || COR_HEX[local.cor] || "#5cb85c");
-    iconEl.innerHTML = `<i class="fa fa-${local.icone || "map-marker"}"></i>`;
+    iconEl.innerHTML = `<i class="fa fa-${icone(local.icone)}"></i>`;
     card.classList.toggle("event", ehEvento);   // acentos dourados via CSS
     $("card-evento-badge").style.display = ehEvento ? "" : "none";
     $("card-title").textContent = local.nome || "";
@@ -632,7 +633,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
         if (aqui.length) { atv = aqui.map((a) => a.atv).join(" · "); slot.className = "agenda-slot cheio" + (coberto ? " evento" : ""); }
         else if (coberto) { atv = janela.label || "Evento"; slot.className = "agenda-slot cheio evento"; }
         else { atv = "vago"; slot.className = "agenda-slot vago"; }
-        slot.innerHTML = `<span class="as-hora">${ini} – ${fim}</span><span class="as-atv">${atv}</span>`;
+        slot.innerHTML = `<span class="as-hora">${esc(ini)} – ${esc(fim)}</span><span class="as-atv">${esc(atv)}</span>`;
         frag.appendChild(slot);
       });
     });
@@ -648,7 +649,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
       sobra.forEach((x) => {
         const slot = document.createElement("div");
         slot.className = "agenda-slot cheio";
-        slot.innerHTML = `<span class="as-hora">${x.hora}</span><span class="as-atv">${x.atv}</span>`;
+        slot.innerHTML = `<span class="as-hora">${esc(x.hora)}</span><span class="as-atv">${esc(x.atv)}</span>`;
         frag.appendChild(slot);
       });
     }
@@ -895,12 +896,26 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     cb.onSelectResult?.(r.local);              // voa até o ponto/prédio
     openCard(r.local, r.path ? { salaPath: r.path } : {});
   }
+  // Busca sem acento/caixa ("predio" acha "Prédio"). Ordem: nome que começa
+  // com o termo → nome que contém → só o subtítulo (prédio/andar) contém.
+  function buscar(q) {
+    const term = normalizar(q);
+    if (!term) return [];
+    const nivel = (r) => {
+      const n = normalizar(r.nome);
+      if (n.startsWith(term)) return 0;
+      if (n.includes(term)) return 1;
+      return normalizar(r.sub).includes(term) ? 2 : -1;
+    };
+    return indiceBusca()
+      .map((r) => ({ r, k: nivel(r) }))
+      .filter((x) => x.k >= 0)
+      .sort((a, b) => a.k - b.k)   // sort estável: mantém a ordem do índice dentro do nível
+      .map((x) => x.r);
+  }
   function renderResults(q) {
-    const term = q.trim().toLowerCase();
-    if (!term) { results.classList.remove("open"); results.innerHTML = ""; return; }
-    const matches = indiceBusca()
-      .filter((r) => r.nome.toLowerCase().includes(term) || r.sub.toLowerCase().includes(term))
-      .slice(0, 10);
+    if (!normalizar(q)) { results.classList.remove("open"); results.innerHTML = ""; return; }
+    const matches = buscar(q).slice(0, 10);
     results.innerHTML = "";
     if (!matches.length) {
       results.innerHTML = '<div class="result-vazio">Nenhum resultado</div>';
@@ -909,18 +924,22 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     matches.forEach((r) => {
       const item = document.createElement("button");
       item.className = "result-item";
-      const icone = `<span class="result-ico" style="background:${r.cor}"><i class="fa fa-${r.ico || "map-marker"}"></i></span>`;
-      item.innerHTML = `${icone}<span class="result-txt"><span class="result-nome">${r.nome}</span>${r.sub ? `<span class="result-sub">${r.sub}</span>` : ""}</span>`;
+      const ico = `<span class="result-ico" style="background:${r.cor}"><i class="fa fa-${icone(r.ico)}"></i></span>`;
+      item.innerHTML = `${ico}<span class="result-txt"><span class="result-nome">${esc(r.nome)}</span>${r.sub ? `<span class="result-sub">${esc(r.sub)}</span>` : ""}</span>`;
       item.onclick = () => abrirResultado(r);
       results.appendChild(item);
     });
     results.classList.add("open");
   }
   searchInput.addEventListener("input", (e) => renderResults(e.target.value));
+  // "Buscar" do teclado do celular abre o 1º resultado e recolhe o teclado.
+  searchInput.addEventListener("keydown", (e) => {
+    if (e.key !== "Enter") return;
+    const m = buscar(searchInput.value)[0];
+    if (m) { searchInput.blur(); abrirResultado(m); }
+  });
   $("search-btn").onclick = () => {
-    const term = searchInput.value.trim().toLowerCase();
-    if (!term) return;
-    const m = indiceBusca().find((r) => r.nome.toLowerCase().includes(term));
+    const m = buscar(searchInput.value)[0];
     if (m) abrirResultado(m);
   };
   document.addEventListener("click", (e) => {
@@ -933,7 +952,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   function showRouteBanner(local, distM, etaMin) {
     const hex = local.cor_hex || COR_HEX[local.cor] || "#5cb85c";
     $("rb-icon").style.background = hex;
-    $("rb-icon").innerHTML = `<i class="fa fa-${local.icone || "map-marker"}"></i>`;
+    $("rb-icon").innerHTML = `<i class="fa fa-${icone(local.icone)}"></i>`;
     $("rb-name").textContent = local.nome || "";
     const arr = new Date(Date.now() + etaMin * 60000);
     $("rb-arrival").textContent =
@@ -979,11 +998,11 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
       const el = document.createElement("div");
       el.className = "ep-single";
       el.innerHTML =
-        `<div class="ep-badge"><i class="fa fa-${l.icone || "star"}"></i></div>` +
+        `<div class="ep-badge"><i class="fa fa-${icone(l.icone, "star")}"></i></div>` +
         `<div class="ep-info">` +
           `<div class="ep-head"><span class="ep-live"></span>EVENTO ACONTECENDO AGORA</div>` +
-          `<div class="ep-name">${nomeEv(l)}</div>` +
-          `<div class="ep-sub"><i class="fa fa-map-marker"></i>${subEv(l)}</div>` +
+          `<div class="ep-name">${esc(nomeEv(l))}</div>` +
+          `<div class="ep-sub"><i class="fa fa-map-marker"></i>${esc(subEv(l))}</div>` +
         `</div>` +
         `<div class="ep-go"><i class="fa fa-chevron-right"></i></div>`;
       el.onclick = () => focarEvento(l);
@@ -997,9 +1016,9 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
         const it = document.createElement("button");
         it.className = "ep-item";
         it.innerHTML =
-          `<span class="ep-dot"><i class="fa fa-${l.icone || "star"}"></i></span>` +
-          `<span class="ep-item-txt"><span class="ep-item-nome">${nomeEv(l)}</span>` +
-          `<span class="ep-item-sub">${subEv(l)}</span></span>` +
+          `<span class="ep-dot"><i class="fa fa-${icone(l.icone, "star")}"></i></span>` +
+          `<span class="ep-item-txt"><span class="ep-item-nome">${esc(nomeEv(l))}</span>` +
+          `<span class="ep-item-sub">${esc(subEv(l))}</span></span>` +
           `<span class="ep-arrow"><i class="fa fa-chevron-right"></i></span>`;
         it.onclick = () => focarEvento(l);
         body.appendChild(it);

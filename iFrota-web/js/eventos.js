@@ -236,11 +236,18 @@ export function eventoParaLocal(ev) {
   };
 }
 
-// Indexa eventos por nome de waypoint existente (local) pra lookup rápido.
-export function indexarPorLocal(eventos) {
+// Indexa eventos por nome de waypoint existente (local) pra lookup rápido. Com
+// mais de um evento no mesmo local, fica o que está ATIVO AGORA (é ele que
+// pinta o marcador de dourado); senão, o de próxima ocorrência mais cedo.
+export function indexarPorLocal(eventos, agora = agoraReal()) {
+  const prioridade = (ev) => eventoAtivoAgora(ev, agora)
+    ? -Infinity
+    : (proximaOcorrenciaData(ev)?.getTime() ?? Infinity);
   const m = new Map();
   for (const ev of eventos || []) {
-    if (ev.local) m.set(ev.local, ev);
+    if (!ev.local) continue;
+    const atual = m.get(ev.local);
+    if (!atual || prioridade(ev) < prioridade(atual)) m.set(ev.local, ev);
   }
   return m;
 }

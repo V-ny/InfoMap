@@ -1,5 +1,6 @@
 // Cria os marcadores dos waypoints (círculo colorido com ícone + seta inferior).
 // Substitui _addWaypointMarkers do IFrota.py.
+import { icone } from "./texto.js";
 
 const todosMarkers = [];
 let _map = null;
@@ -38,7 +39,7 @@ export function adicionarMarcadores(map, locais, { onClick } = {}) {
         <div class="wp-content">
           <div class="wp-spikes">${spikes}</div>
           <div class="wp-circle">
-            <i class="fa fa-${local.icone}"></i>
+            <i class="fa fa-${icone(local.icone)}"></i>
           </div>
         </div>`;
     } else {
@@ -48,7 +49,7 @@ export function adicionarMarcadores(map, locais, { onClick } = {}) {
       wrap.innerHTML = `
         <div class="wp-content">
           <div class="wp-circle" style="background:${local.cor_hex};">
-            <i class="fa fa-${local.icone}"></i>
+            <i class="fa fa-${icone(local.icone)}"></i>
           </div>
           <div class="wp-arrow"></div>
         </div>`;

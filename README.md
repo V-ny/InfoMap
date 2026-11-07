@@ -39,7 +39,7 @@ python -m http.server 8000
 
 Abra http://localhost:8000 no Chrome/Edge.
 
-Para rodar os testes (pathfinding + dados, Node puro, sem browser): `npm test`.
+Para rodar os testes (pathfinding, dados, busca e eventos — Node puro, sem browser): `npm test`.
 
 > ⚠️ **Não abra direto o `index.html`** (`file://...`) — módulos ES não funcionam via file://. Precisa de um servidor HTTP.
 
@@ -114,7 +114,7 @@ iFrota-web/
 ├── capacitor.config.json # Config do empacotamento Android (Capacitor)
 ├── _shot.py             # Helper de screenshot via QtWebEngine
 ├── _gen_icons.py        # Gera os ícones PWA (PIL)
-├── tests/               # Testes em Node puro: pathfinding + dados (npm test)
+├── tests/               # Testes em Node puro: pathfinding, dados, texto/eventos (npm test)
 ├── tools/               # aplicar-export (edições do admin → data/) + preparar-android
 ├── icons/               # icon-192/512 (+maskable) + favicon
 ├── fotos/               # Fotos da galeria referenciadas no data/locais.json
@@ -128,6 +128,7 @@ iFrota-web/
 │   ├── config.js        # Constantes (bounds, cores, paths)
 │   ├── modo.js          # Modos público / admin / demonstração
 │   ├── remoto.js        # Busca o conteúdo publicado no repositório (APK)
+│   ├── texto.js         # Escape de HTML + normalização da busca (sem acento)
 │   ├── data.js          # Carrega JSONs (locais, campus, overpass, eventos)
 │   ├── geo.js           # Haversine + ponto-em-polígono + formatação de distância
 │   ├── store.js         # Persistência leve (tema, favoritos, última posição)

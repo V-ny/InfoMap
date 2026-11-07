@@ -39,6 +39,9 @@
   font-size: 14px; height: 100%;
 }
 #search-input::placeholder { color: var(--leg-tit); }
+/* type="search" (teclado com botão "Buscar"): sem o visual nativo do campo. */
+#search-input { -webkit-appearance: none; appearance: none; }
+#search-input::-webkit-search-cancel-button { display: none; }
 #search-btn {
   width: 36px; height: 36px; border-radius: 18px; background: var(--sbtn-bg);
   color: #fff; display: flex; align-items: center; justify-content: center; font-size: 15px;

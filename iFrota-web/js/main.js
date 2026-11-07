@@ -12,6 +12,7 @@ import { initLocation, iniciarGPS, setManualMode, isManualMode, setPosicao } fro
 import { initRouting, calcularRota, limparRota, reAddRouteLayers, atualizarTracking } from "./routing.js";
 import { eventosAtivosAgora, eventosProximosDias, proximaOcorrencia, proximaOcorrenciaData, indexarPorLocal, eventoParaLocal, setRelogioOverride, agoraReal, sincronizarHoraWeb, eventoAtivoNoContainer, salasDoContainer, eventoAtivoAgora } from "./eventos.js";
 import { pontoEmPoligono } from "./geo.js";
+import { esc } from "./texto.js";
 import { somRota, somNotificacao } from "./sons.js";
 import { mesclarLocais, mesclarEventos, mesclarCardapios } from "./admin-store.js";
 // Backend de fotos é LOCAL (js/fotos-store.js, usado pela ui.js). Firebase está
@@ -415,8 +416,21 @@ async function bootstrap() {
   });
 }
 
+// Falha ao abrir: tela legível com "Tentar de novo" (e não um JSON cru). O caso
+// mais comum em celular é o WebGL indisponível — Android System WebView antigo.
 bootstrap().catch((e) => {
   console.error("[IFrota] erro no bootstrap:", e);
+  const detalhe = String(e?.message || e);
+  const semWebGL = /webgl/i.test(detalhe);
+  const msg = semWebGL
+    ? "Este aparelho não conseguiu iniciar o mapa (WebGL indisponível). No Android, atualize o app “Android System WebView” na Play Store e abra o IF-rota de novo."
+    : "Não foi possível carregar o IF-rota. Verifique o armazenamento do aparelho e tente de novo.";
   document.body.innerHTML =
-    `<pre style="padding:20px;color:#d9534f;">Erro ao carregar IFrota:\n${e.message}</pre>`;
+    `<div style="max-width:420px;margin:15vh auto 0;padding:24px;font-family:system-ui,sans-serif;text-align:center;color:#333;">` +
+      `<div style="font-size:40px;">🗺️</div>` +
+      `<p style="font-size:16px;line-height:1.5;">${esc(msg)}</p>` +
+      `<button onclick="location.reload()" style="margin-top:12px;padding:12px 22px;border:0;border-radius:10px;background:#2e7d32;color:#fff;font-size:15px;">Tentar de novo</button>` +
+      `<details style="margin-top:28px;font-size:11px;color:#888;text-align:left;"><summary>Detalhes técnicos</summary><pre style="white-space:pre-wrap;">${esc(detalhe)}</pre></details>` +
+    `</div>`;
+  document.body.style.background = "#fafafa";
 });
