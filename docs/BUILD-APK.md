@@ -40,6 +40,7 @@ sobrescrever uma chave existente.
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot"
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:JAVA_TOOL_OPTIONS = "-Djavax.net.ssl.trustStore=$env:LOCALAPPDATA\Android\certs\cacerts -Djavax.net.ssl.trustStorePassword=changeit"   # Avast (ver abaixo)
 cd iFrota-web
 npm test                                   # não empacote com teste falhando
 npm run sync                               # build-www + cap sync + preparar-android
@@ -50,14 +51,16 @@ cd android
 Para testes rápidos no seu aparelho, `assembleDebug` continua valendo. Mas não
 distribua o APK de debug: a chave dele muda de computador para computador.
 
-O `npm run sync` roda o `tools/preparar-android.mjs`. Ele faz três coisas, e pode
+O `npm run sync` roda o `tools/preparar-android.mjs`. Ele faz quatro coisas, e pode
 rodar quantas vezes for preciso:
 - garante as permissões de localização no `AndroidManifest.xml` (sem elas o GPS
   não funciona no APK);
 - copia a `version` do `package.json` para o `versionName`/`versionCode` do APK;
 - configura o `assembleRelease` para assinar com a chave de `~/.ifrota`. As senhas
   são lidas na hora do build e nunca entram no projeto. A saída diz se a chave foi
-  encontrada.
+  encontrada;
+- troca o ícone e a tela de abertura padrão do Capacitor pelos do IF-rota (a partir
+  de `icons/`).
 
 **Antes de gerar um APK para distribuir, suba a versão no `package.json`** (ex.:
 1.0.0 → 1.1.0). Assim o APK novo instala por cima do antigo, e a versão aparece no
@@ -81,9 +84,19 @@ base.
 O Avast faz interceptação TLS (MITM), quebrando a validação de certificado de
 ferramentas que não usam o trust store do Windows:
 1. **npm:** `$env:NODE_OPTIONS = "--use-system-ca"`.
-2. **Java/sdkmanager/Gradle:** importar a root `Avast Web/Mail Shield Root` num cacerts
-   copiado e apontar via `-Djavax.net.ssl.trustStore` no `android/gradle.properties`
-   (que é regenerado pelo `cap add android` — refazer se apagar a pasta).
+2. **Java/sdkmanager/Gradle:** usam o truststore `%LOCALAPPDATA%\Android\certs\cacerts`
+   (o do JDK + a raiz do Avast), passado pelo `JAVA_TOOL_OPTIONS` do passo 4. Variável
+   de ambiente, e não `android/gradle.properties`, porque a pasta `android/` é recriada.
+   **Se o Gradle voltar a falhar com `PKIX path validation failed`**, o Avast trocou a
+   raiz (aconteceu em nov/2026). Para refazer o truststore:
+   ```powershell
+   $kt = "$env:JAVA_HOME\bin\keytool.exe"; $dir = "$env:LOCALAPPDATA\Android\certs"
+   Copy-Item "$env:JAVA_HOME\lib\security\cacerts" "$dir\cacerts" -Force
+   Get-ChildItem Cert:\LocalMachine\Root | Where-Object Subject -match "Avast" | ForEach-Object {
+     [IO.File]::WriteAllBytes("$dir\avast.cer", $_.RawData)
+     & $kt -importcert -noprompt -keystore "$dir\cacerts" -storepass changeit -alias "avast-$($_.Thumbprint)" -file "$dir\avast.cer"
+   }
+   ```
 3. **sdkmanager licenças:** o prompt lê do console, trava headless. Solução: escrever os
    hashes em `Sdk/licenses/android-sdk-license` direto (hashes públicos de CI).
 
