@@ -3,11 +3,11 @@
 // Os editores do admin (pontos/eventos/prédios/cardápio) vivem no ui-admin.js.
 import { store } from "./store.js";
 import { COR_HEX } from "./config.js";
-import { initAdminUI } from "./ui-admin.js";
 import { MODO_ADMIN, alternarModoAdmin } from "./modo.js";
 import { selecionarMarcador, limparSelecao, filtrarPorCategoria } from "./markers.js";
 import { haversine, formatarDistancia } from "./geo.js";
 import { esc, icone, normalizar } from "./texto.js";
+import { urlRemotaFoto } from "./remoto.js";
 import { HORARIOS_PADRAO, eventoAtivoHoje, eventoAtivoAgora, agoraReal, eventoAtivoNoContainer, formatarJanela } from "./eventos.js";
 import { somPonto, sonsAtivos, setSons } from "./sons.js";
 // Backend de fotos: LOCAL (IndexedDB + login local). Pra usar o Firebase (nuvem),
@@ -156,8 +156,15 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   $("login-senha").addEventListener("keydown", (e) => { if (e.key === "Enter") submitLogin(); });
 
   // ── GESTÃO ADMIN (pontos, eventos, prédios, cardápio, gerenciar, backup) ──
-  // Vive em módulo próprio (ui-admin.js); devolve os editores usados pelo card.
-  const admin = initAdminUI({ locais, baseEventos, cb, closePanel, showToast });
+  // Vive em módulo próprio (ui-admin.js), carregado SÓ no modo admin: no modo
+  // público (estudantes) esse código nem é baixado/interpretado. Devolve os
+  // editores usados pelo botão "editar" do card.
+  let admin = null;
+  if (MODO_ADMIN) {
+    import("./ui-admin.js").then(({ initAdminUI }) => {
+      admin = initAdminUI({ locais, baseEventos, cb, closePanel, showToast });
+    }).catch((e) => console.error("[IFrota] falha ao carregar o admin:", e));
+  }
 
   // ── EVENTOS (lista lateral, horizonte 31 dias) ──
   // entries: [{ ev, local }]. Clicar direciona pro evento (sem popup).
@@ -561,7 +568,7 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   $("card-nav").onclick = () => { if (currentLocal) cb.onNav?.(currentLocal); };
   // Editar (admin): abre o editor certo pré-preenchido.
   $("card-edit").onclick = () => {
-    if (!currentLocal) return;
+    if (!currentLocal || !admin) return;
     const l = currentLocal;
     closeCard();
     if (ehContainer(l)) admin.abrirEditorPredio(l);
@@ -746,6 +753,27 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
     galFotos = galFotos.filter((g) => !g.cloud).concat(novos);
     renderGaleria();
   }
+  // Resolve a URL exibível de uma foto: o arquivo do APK ou, se ele não existir
+  // (foto publicada depois do build), a cópia do repositório. null = sem foto.
+  // Memoriza o resultado para não refazer a tentativa a cada troca de foto.
+  const _fotoResolvida = new Map();
+  function carregarFoto(src) {
+    if (!_fotoResolvida.has(src)) {
+      const tentar = (url) => new Promise((ok) => {
+        if (!url) return ok(null);
+        const img = new Image();
+        img.onload = () => ok(url);
+        img.onerror = () => ok(null);
+        img.src = url;
+      });
+      const p = tentar(src).then((url) => url || tentar(urlRemotaFoto(src)));
+      // Falha não é memorizada: offline agora pode ter rede na próxima abertura.
+      _fotoResolvida.set(src, p);
+      p.then((url) => { if (!url) _fotoResolvida.delete(src); });
+    }
+    return _fotoResolvida.get(src);
+  }
+
   function renderGaleria() {
     const hero = $("gal-hero");
     const n = galFotos.length;
@@ -763,11 +791,11 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
       hero.onclick = null;
       return;
     }
-    const path = item.src;
-    const img = new Image();
-    img.onload = () => { hero.style.backgroundImage = `url("${path}")`; hero.innerHTML = ""; };
-    img.onerror = () => { hero.style.backgroundImage = ""; hero.innerHTML = '<i class="fa fa-camera"></i>'; };
-    img.src = path;
+    carregarFoto(item.src).then((url) => {
+      if (galFotos[galIdx] !== item) return;   // usuário já trocou de foto/card
+      if (url) { hero.style.backgroundImage = `url("${url}")`; hero.innerHTML = ""; }
+      else { hero.style.backgroundImage = ""; hero.innerHTML = '<i class="fa fa-camera"></i>'; }
+    });
     hero.onclick = () => abrirViewer(galIdx);
     $("gal-counter").textContent = `${galIdx + 1} / ${n}`;
     if (temNav) {
@@ -833,12 +861,13 @@ export function initUI({ locais, baseEventos = [], callbacks }) {
   function fecharViewer() { viewer.classList.remove("open"); }
   function renderViewer() {
     const n = galFotos.length;
-    const path = galFotos[pvIdx] && galFotos[pvIdx].src;
+    const item = galFotos[pvIdx];
     const img = $("pv-img");
-    const probe = new Image();
-    probe.onload = () => { img.src = path; viewer.classList.remove("no-img"); };
-    probe.onerror = () => { img.removeAttribute("src"); viewer.classList.add("no-img"); };
-    probe.src = path;
+    carregarFoto(item && item.src).then((url) => {
+      if (galFotos[pvIdx] !== item) return;
+      if (url) { img.src = url; viewer.classList.remove("no-img"); }
+      else { img.removeAttribute("src"); viewer.classList.add("no-img"); }
+    });
     $("pv-counter").textContent = `${pvIdx + 1} / ${n}`;
     $("pv-prev").style.display = n > 1 ? "flex" : "none";
     $("pv-next").style.display = n > 1 ? "flex" : "none";

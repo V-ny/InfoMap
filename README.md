@@ -101,7 +101,8 @@ com os horários das refeições até a semana nova chegar.
 
 > Fotos enviadas pelo app ficam no IndexedDB do aparelho e **não** entram no export.
 > Para publicar uma foto, coloque o arquivo em `iFrota-web/fotos/` e referencie-o no
-> campo `fotos` do local em `data/locais.json`.
+> campo `fotos` do local em `data/locais.json`. Depois do push, os APKs já instalados
+> buscam no repositório a foto que não veio dentro deles.
 
 ## Estrutura
 

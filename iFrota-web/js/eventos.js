@@ -48,13 +48,15 @@ export async function sincronizarHoraWeb() {
   const fontes = [
     { url: "https://timeapi.io/api/Time/current/zone?timeZone=UTC",
       epoch: (j) => Date.UTC(j.year, j.month - 1, j.day, j.hour, j.minute, j.seconds, j.milliSeconds || 0) },
-    { url: "https://worldclockapi.com/api/json/utc/now",
-      epoch: (j) => Date.parse(j.currentDateTime) },
   ];
   for (const f of fontes) {
+    // Tempo-limite: servidor lento não pode segurar a sincronização (e a
+    // medida de latência perderia o sentido).
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), 5000);
     try {
       const t0 = Date.now();
-      const resp = await fetch(f.url, { cache: "no-store" });
+      const resp = await fetch(f.url, { cache: "no-store", signal: ctrl.signal });
       if (!resp.ok) continue;
       const web = f.epoch(await resp.json());
       if (!Number.isFinite(web)) continue;
@@ -63,7 +65,7 @@ export async function sincronizarHoraWeb() {
       const offset = web + Math.round((t1 - t0) / 2) - t1;
       setHoraOffset(offset);
       return offset;
-    } catch { /* tenta a próxima fonte */ }
+    } catch { /* tenta a próxima fonte */ } finally { clearTimeout(timer); }
   }
   return null;
 }

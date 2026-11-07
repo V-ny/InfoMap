@@ -65,6 +65,14 @@ export async function buscarDadosRemotos() {
   }
 }
 
+// Foto referenciada nos dados mas ausente no APK (publicada depois do build):
+// busca no mesmo lugar dos dados remotos — a pasta do app no repositório.
+// null para URLs absolutas (blob:/data:/http:) e quando o remoto está desligado.
+export function urlRemotaFoto(src) {
+  if (!remotoAtivo() || !src || /^[a-z][a-z0-9+.-]*:/i.test(src) || src.startsWith("//")) return null;
+  return DADOS_REMOTOS.replace(/data\/$/, "") + src.replace(/^\.?\//, "");
+}
+
 // Informações do build (versão + data), gravadas pelo build-www.mjs. Em dev o
 // arquivo não existe → null.
 export async function carregarBuild() {

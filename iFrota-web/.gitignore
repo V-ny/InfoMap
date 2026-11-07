@@ -1,5 +1,6 @@
 # Artefatos de teste/screenshot
 _shot*.png
+_*.png
 _shot.py.out
 
 # Build Android (Bubblewrap/Capacitor)
@@ -9,6 +10,8 @@ android/
 *.apk
 *.aab
 *.keystore
+*.jks
+release.properties
 android.keystore
 twa-manifest.json.bak
 

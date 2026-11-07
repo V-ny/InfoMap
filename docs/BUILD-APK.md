@@ -25,7 +25,18 @@ node build-www.mjs
 npx cap add android
 ```
 
-### 3. Build do APK (cada vez que mudar o app)
+### 3. Chave de assinatura (uma vez, para sempre)
+```powershell
+cd iFrota-web
+npm run keystore
+```
+Cria a chave de release em `%USERPROFILE%\.ifrota\` (fora do repositório e do OneDrive),
+com senha aleatória. **Faça backup dessa pasta** (pendrive, gerenciador de senhas). Todo
+APK distribuído precisa ser assinado com ela, senão o Android não instala por cima da
+versão anterior e cada estudante teria de desinstalar o app. O comando se recusa a
+sobrescrever uma chave existente.
+
+### 4. Build do APK (cada vez que mudar o app)
 ```powershell
 $env:JAVA_HOME = "C:\Program Files\Microsoft\jdk-17.0.19.10-hotspot"
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
@@ -33,15 +44,20 @@ cd iFrota-web
 npm test                                   # não empacote com teste falhando
 npm run sync                               # build-www + cap sync + preparar-android
 cd android
-.\gradlew.bat assembleDebug --no-daemon --console=plain
-# → app/build/outputs/apk/debug/app-debug.apk
+.\gradlew.bat assembleRelease --no-daemon --console=plain
+# → app/build/outputs/apk/release/app-release.apk   (o que vai para os estudantes)
 ```
+Para testes rápidos no seu aparelho, `assembleDebug` continua valendo. Mas não
+distribua o APK de debug: a chave dele muda de computador para computador.
 
-O `npm run sync` roda o `tools/preparar-android.mjs`. Ele faz duas coisas, e pode
+O `npm run sync` roda o `tools/preparar-android.mjs`. Ele faz três coisas, e pode
 rodar quantas vezes for preciso:
 - garante as permissões de localização no `AndroidManifest.xml` (sem elas o GPS
   não funciona no APK);
-- copia a `version` do `package.json` para o `versionName`/`versionCode` do APK.
+- copia a `version` do `package.json` para o `versionName`/`versionCode` do APK;
+- configura o `assembleRelease` para assinar com a chave de `~/.ifrota`. As senhas
+  são lidas na hora do build e nunca entram no projeto. A saída diz se a chave foi
+  encontrada.
 
 **Antes de gerar um APK para distribuir, suba a versão no `package.json`** (ex.:
 1.0.0 → 1.1.0). Assim o APK novo instala por cima do antigo, e a versão aparece no
@@ -49,9 +65,10 @@ rodapé do menu lateral.
 
 ### O que muda sem precisar de APK novo
 Eventos, cardápio e pontos (`data/locais.json` e `data/eventos.json`): basta um push.
-O app instalado baixa o conteúdo ao abrir (ver "Conteúdo atualizado sem reinstalar"
-no README). Um APK novo só é necessário quando muda o código (js/css/html), as fotos
-ou o mapa base.
+O mesmo vale para fotos novas em `fotos/` referenciadas no `locais.json`. O app
+instalado baixa o conteúdo ao abrir (ver "Conteúdo atualizado sem reinstalar" no
+README). Um APK novo só é necessário quando muda o código (js/css/html) ou o mapa
+base.
 
 ### Checklist rápido no aparelho
 - [ ] Abre offline (modo avião) mostrando o campus e os pontos
